@@ -14,7 +14,8 @@ function summarizeSession(st, date, sid, log) {
   if (!s) return null;
   const pos = s.pos;
   const main = s.blocks[0];
-  const out = { lift: main.lift, variant: variantOf(st, main.lift).name, volume: 0, sets: 0, e1rm: null, top: null, test: null };
+  const out = { lift: main.lift, variant: variantOf(st, main.lift).name, volume: 0, sets: 0, e1rm: null, top: null, test: null,
+    exIds: [variantOf(st, main.lift).id].concat(s.test ? [] : [variantOf(st, SESSIONS[sid].secondary).id], s.blocks.filter((b) => b.ex).map((b) => b.ex.id)) };
   if (s.test) {
     const t = st.tests[pos.cycle] && st.tests[pos.cycle][main.lift];
     if (t) { out.test = t; out.e1rm = { value: t, w: t, reps: 1, src: 'test' }; out.top = { w: t, reps: 1 }; }
@@ -148,6 +149,13 @@ function e1rmSeries(hist, lift) {
   return hist.filter((h) => h.lift === lift && h.e1rm).map((h) => ({ date: h.date, ...h.e1rm }));
 }
 
+/** How many completed sessions included each exercise id. */
+function exerciseCounts(hist) {
+  const c = {};
+  hist.forEach((h) => (h.exIds || []).forEach((id) => (c[id] = (c[id] || 0) + 1)));
+  return c;
+}
+
 function personalRecords(st, hist) {
   const out = {};
   LIFTS.forEach((l) => {
@@ -160,5 +168,5 @@ function personalRecords(st, hist) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { summarizeSession, history, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords };
+  module.exports = { summarizeSession, history, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords, exerciseCounts };
 }

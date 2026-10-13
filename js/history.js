@@ -1,0 +1,133 @@
+'use strict';
+/* ================= 历史: records & analytics ================= */
+
+let statsLift = 'squat';
+let histTab = 'log';
+
+function renderHistory() {
+  const today = new Date();
+  const hist = history(state);
+  const weeks = weekly(state, today, hist);
+  const pos = position(state, today);
+  if (!pos || !hist.length && !weeks.some((w) => w.app + w.offline)) {
+    $('#view-history').innerHTML = `<div class="page-head"><h1>历史</h1></div><div class="card"><h2>还没有训练数据</h2>
+      <p class="muted">完成第一次训练后，这里会显示力量曲线、训练量、完成日历和个人纪录。</p>
+      <p class="muted">如果之前已经在 App 外练过几周，可以在「挑战」里把那些训练标记为 📝 App 外完成。</p></div>${bodyweightCard(today)}`;
+    return;
+  }
+  const nApp = hist.filter((h) => !h.offline).length, nOff = hist.length - nApp;
+  const totalVol = hist.reduce((a, h) => a + h.volume, 0);
+  const passed = weeks.filter((w) => w.cycle === pos.cycle);
+  const req = passed.reduce((a, w) => a + (w.current ? Math.max(w.app + w.offline, 0) : w.required), 0);
+  const got = passed.reduce((a, w) => a + Math.min(w.required, w.app + w.offline), 0);
+  const rate = req ? Math.round((got / req) * 100) : 0;
+
+  let html = `<div class="tiles">
+    <div class="tile"><b>${hist.length}</b><span>累计训练</span><small>App ${nApp} · App 外 ${nOff}</small></div>
+    <div class="tile"><b>${streak(weeks)}<i>周</i></b><span>连续完成</span><small>每周练满才算</small></div>
+    <div class="tile"><b>${rate}<i>%</i></b><span>本轮完成率</span><small>第 ${pos.cycle + 1} 轮</small></div>
+    <div class="tile"><b>${(totalVol / 1000).toFixed(1)}<i>吨</i></b><span>总训练量</span><small>主项 + 第二主项</small></div>
+  </div>`;
+
+  // Strength curve
+  const tm = tmSeries(state, statsLift, today);
+  const e1 = e1rmSeries(hist, statsLift);
+  const tests = e1.filter((p) => p.src === 'test');
+  const amr = e1.filter((p) => p.src === 'amrap');
+  const pr = personalRecords(state, hist)[statsLift];
+  const series = [
+    { name: 'TM', cls: 'ref', step: true, dashed: true, points: tm.map((p) => ({ x: p.date, y: p.tm, tip: `${fmtDate(p.date)} 起 · TM ${fmtW(p.tm)}kg` })) },
+    { name: '估算 1RM', cls: 's1', dots: true, points: amr.map((p) => ({ x: p.date, y: p.value, tip: `${fmtDate(p.date)} · ${fmtW(p.w)}kg × ${p.reps} 次 → 估算 1RM ${fmtW(p.value)}kg` })) },
+    { name: '测试 1RM', cls: 's1', diamond: true, label: false, points: tests.map((p) => ({ x: p.date, y: p.value, tip: `${fmtDate(p.date)} · 测试 1RM ${fmtW(p.value)}kg` })) },
+  ];
+  const gain = pr.best ? pr.best.value - pr.start : null;
+  html += `<div class="card"><h2>力量曲线</h2>
+    <div class="chips">${LIFTS.map((l) => chip(LIFT_NAMES[l], `data-lift="${l}"`, statsLift === l)).join('')}</div>
+    <div class="legend"><span><i class="lg ref dashed"></i>训练最大重量 TM</span><span><i class="lg s1 dot"></i>估算 1RM（"+"组）</span><span><i class="lg s1 diamond"></i>测试 1RM</span></div>
+    ${lineChart({ series })}
+    <div class="kv"><span>起始 1RM</span><b>${fmtW(pr.start)}kg</b></div>
+    <div class="kv"><span>最佳估算 1RM</span><b>${pr.best ? `${fmtW(pr.best.value)}kg` : '—'}${gain !== null ? ` <em class="${gain >= 0 ? 'up' : 'down'}">${gain >= 0 ? '+' : ''}${fmtW(gain)}</em>` : ''}</b></div>
+    <div class="kv"><span>App 记录的最大重量</span><b>${pr.heaviest ? `${fmtW(pr.heaviest.w)}kg × ${pr.heaviest.reps}` : '—'}</b></div>
+    ${amr.length ? '' : '<p class="muted">在带 "+" 的组里填写实际次数，就能看到估算 1RM 曲线。</p>'}
+    ${e1.length ? `<details><summary class="muted">查看数据表</summary><table class="tm">
+      <tr><th>日期</th><th>重量×次数</th><th>1RM</th></tr>
+      ${e1.slice().reverse().map((p) => `<tr><td>${fmtDate(p.date)}</td><td>${fmtW(p.w)}×${p.reps}${p.src === 'test' ? '（测试）' : ''}</td><td>${fmtW(p.value)}</td></tr>`).join('')}</table></details>` : ''}
+  </div>`;
+
+  // Weekly volume
+  const recent = weeks.slice(-12);
+  const bars = recent.map((w) => ({
+    label: `W${w.week}`,
+    tip: `第 ${w.cycle + 1} 轮第 ${w.week} 周 · ${w.app + w.offline}/${w.required} 次 · App ${(w.appVolume / 1000).toFixed(1)} 吨 · App 外 ${(w.offlineVolume / 1000).toFixed(1)} 吨`,
+    segments: [{ value: w.appVolume / 1000, cls: 's1' }, { value: w.offlineVolume / 1000, cls: 's1soft' }],
+  }));
+  html += `<div class="card"><h2>每周训练量 <span class="muted">（吨）</span></h2>
+    <div class="legend"><span><i class="lg s1"></i>App 记录</span><span><i class="lg s1soft"></i>App 外（按计划估算）</span></div>
+    ${barChart({ bars })}
+    <p class="muted">减载周（第 4、8 周）训练量下降是正常的。</p></div>`;
+
+  // Calendar
+  const firstW = Math.max(0, pos.weekAbs - 11);
+  const cells = [], labels = [];
+  for (let w = firstW; w <= pos.weekAbs; w++) {
+    const start = addDays(parseKey(state.startDate), w * 7);
+    labels.push((w - firstW) % 3 === 0 ? `W${(w % 12) + 1}` : '');
+    cells.push(Array.from({ length: 7 }, (_, d) => {
+      const date = addDays(start, d);
+      const l = state.logs[dateKey(date)];
+      const label = `${fmtDate(date)} ${WEEKDAYS[weekdayIdx(date)]}`;
+      if (l && l.done && SESSIONS[l.session]) return { cls: l.offline ? 'off' : 'app', tip: `${label} · ${sessionName(l.session, (w % 12) + 1)} · ${l.offline ? 'App 外完成' : 'App 完成'}` };
+      if (dayDiff(today, date) > 0) return { cls: 'future' };
+      return { cls: 'none', tip: `${label} · 无训练` };
+    }));
+  }
+  let logHtml = `<div class="card"><h2>训练日历</h2>
+    <div class="legend"><span><i class="lg s1"></i>App 完成</span><span><i class="lg s1soft"></i>App 外完成</span><span><i class="lg none"></i>未训练</span></div>
+    ${calendarChart(cells, labels)}
+    <h3>每周完成情况</h3>
+    <div class="weekbar">${recent.map((w) => `<span class="${w.app + w.offline >= w.required ? 'full' : w.current ? 'cur' : ''}" data-tip="第 ${w.week} 周 ${w.app + w.offline}/${w.required}">${w.app + w.offline}/${w.required}</span>`).join('')}</div></div>`;
+
+  // Recent sessions
+  const byWeek = {};
+  hist.slice().reverse().forEach((h) => (byWeek[h.pos.weekAbs] = byWeek[h.pos.weekAbs] || []).push(h));
+  logHtml += Object.keys(byWeek).sort((a, b) => b - a).map((wa) => {
+    const w = weeks[wa];
+    return `<div class="card"><div class="row between"><h2>第 ${w.cycle + 1} 轮 · 第 ${w.week} 周</h2><span class="muted">${w.app + w.offline}/${w.required} · ${fmtDate(w.start)}起</span></div>
+    ${byWeek[wa].map((h) => `<div class="hist">
+      <div class="row between"><span><b>${sessionName(h.session, h.pos.week)}</b> <span class="muted">${fmtDate(h.date)} ${WEEKDAYS[weekdayIdx(h.date)]}</span></span>${BADGE[h.offline ? 'offline' : 'app']}</div>
+      <div class="muted">${esc(h.variant)}${h.top ? ` · 最重 ${fmtW(h.top.w)}kg × ${h.top.reps}` : ''}${h.e1rm ? ` · 1RM≈${fmtW(h.e1rm.value)}` : ''} · ${(h.volume / 1000).toFixed(2)} 吨</div></div>`).join('')}</div>`;
+  }).join('');
+
+  html += bodyweightCard(today);
+  $('#view-history').innerHTML = `<div class="page-head"><h1>历史</h1></div>
+    <div class="utabs">${[['log', '训练记录'], ['data', '数据分析']].map(([k, l]) => `<button data-xtab="${k}" class="${histTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    ${histTab === 'log' ? logHtml : html}`;
+}
+
+function bodyweightCard(today) {
+  const pts = Object.entries(state.bodyweight).sort().map(([k, v]) => ({ x: parseKey(k), y: v, tip: `${fmtDate(parseKey(k))} · ${v}kg` }));
+  const first = pts[0], last = pts[pts.length - 1];
+  return `<div class="card"><h2>体重</h2>
+    <div class="row"><input class="grow" type="number" inputmode="decimal" step="0.1" id="bwInput" placeholder="今天的体重 (kg)" value="${state.bodyweight[dateKey(today)] ?? ''}">
+      <button class="btn small" data-act="bw">记录</button></div>
+    ${pts.length > 1 ? lineChart({ series: [{ name: '体重', cls: 's1', dots: pts.length < 30, points: pts }], height: 160 }) : '<p class="muted">记录两次以上就能看到体重曲线。增肌期每周增长 0.25–0.5kg 为宜。</p>'}
+    ${pts.length > 1 ? `<p class="muted">${fmtDate(first.x)} 至今 ${last.y - first.y >= 0 ? '+' : ''}${(last.y - first.y).toFixed(1)}kg</p>` : ''}</div>`;
+}
+
+function bindHistory() {
+  const root = $('#view-history');
+  bindChartTips(root);
+  root.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.lift) { statsLift = b.dataset.lift; render(); }
+    else if (b.dataset.xtab) { histTab = b.dataset.xtab; render(); }
+    else if (b.dataset.act === 'bw') {
+      const v = Number($('#bwInput').value);
+      if (!(v > 30 && v < 300)) return toast('请输入正确的体重');
+      state.bodyweight[dateKey(new Date())] = v;
+      state.profile.weight = v;
+      save(); render(); toast('已记录，营养目标已按新体重更新');
+    }
+  });
+}

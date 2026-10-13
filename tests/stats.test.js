@@ -1,7 +1,7 @@
 // Run: node tests/stats.test.js
 const assert = require('assert');
-const E = require('../engine.js');
-const S = require('../stats.js');
+const E = require('../js/engine.js');
+const S = require('../js/stats.js');
 
 const st = {
   lifts: { press: { variant: 'ohp', oneRM: 65 }, deadlift: { variant: 'conv_dl', oneRM: 150 },
