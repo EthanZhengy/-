@@ -22,6 +22,7 @@
   <section id="view-wizard" class="view"></section>
   <section id="view-today" class="view"></section>
   <section id="view-plan" class="view"></section>
+  <section id="view-stats" class="view"></section>
   <section id="view-nutrition" class="view"></section>
   <section id="view-settings" class="view"></section>
 </main>
@@ -29,6 +30,7 @@
 <nav class="tabbar">
   <button data-view="today" class="active"><span>🏋️</span>今天</button>
   <button data-view="plan"><span>📅</span>计划</button>
+  <button data-view="stats"><span>📈</span>数据</button>
   <button data-view="nutrition"><span>🥗</span>营养</button>
   <button data-view="settings"><span>👤</span>我的</button>
 </nav>
@@ -36,6 +38,8 @@
 <div id="toast" class="toast" hidden></div>
 <script src="data.js"></script>
 <script src="engine.js"></script>
+<script src="stats.js"></script>
+<script src="charts.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

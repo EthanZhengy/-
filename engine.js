@@ -374,5 +374,5 @@ function sessionSummary(st, date, sessionId, readiness) {
 if (typeof module !== 'undefined') {
   module.exports = { dateKey, parseKey, addDays, dayDiff, weekdayIdx, mondayOf, roundTo, fmtW, epley, baseTM, tmFor,
     position, recommend, remainingPlan, buildSession, pickExercises, candidates, ranked, nutritionFor, mealsFor,
-    variantOf, sessionSummary, scheduledFor };
+    variantOf, sessionSummary, scheduledFor, orderFor, requiredFor, doneSessions, doneOn };
 }

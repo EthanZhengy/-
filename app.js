@@ -20,7 +20,7 @@ function defaultState() {
     schedule: [0, 1, 3, 4],
     trainTime: '18:30',
     startDate: dateKey(mondayOf(new Date())),
-    tests: {}, logs: {},
+    tests: {}, logs: {}, bodyweight: {},
     reminders: { enabled: false, morning: '07:30', meals: false },
   };
 }
@@ -75,7 +75,7 @@ function startWizard(fromSettings) {
   const draft = clone(state);
   const inputs = {};
   LIFTS.forEach((l) => (inputs[l] = { w: draft.lifts[l].oneRM || '', reps: 1 }));
-  wiz = { step: fromSettings ? 1 : 0, draft, inputs, startOpt: state.onboarded ? 'keep' : 'this', startWeek: 1 };
+  wiz = { step: fromSettings ? 1 : 0, draft, inputs, startOpt: state.onboarded ? 'keep' : 'this', startWeek: 1, doneNow: [] };
   render();
 }
 
@@ -174,7 +174,10 @@ function renderWizard() {
           ${chip('下周一开始', 'data-start="next"', wiz.startOpt === 'next')}
           ${chip('我已经在练了', 'data-start="week"', wiz.startOpt === 'week')}
         </div>
-        ${wiz.startOpt === 'week' ? `<label>本周是第几周</label><select data-start-week>${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${wiz.startWeek === i + 1 ? 'selected' : ''}>第 ${i + 1} 周 · ${WEEKS[i].name}</option>`).join('')}</select>` : ''}
+        ${wiz.startOpt === 'week' ? `<label>本周是第几周</label><select data-start-week>${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${wiz.startWeek === i + 1 ? 'selected' : ''}>第 ${i + 1} 周 · ${WEEKS[i].name}</option>`).join('')}</select>
+          ${wiz.startWeek > 1 ? `<p class="muted">第 1–${wiz.startWeek - 1} 周会标记为 <span class="badge offline">📝 App 外完成</span>，之后可以在「计划」里逐次修改。</p>` : ''}` : ''}
+        ${wiz.startOpt === 'this' || wiz.startOpt === 'week' ? `<label>这周已经练过哪些？（在 App 外完成的）</label>
+          <div class="chips">${orderFor(wiz.startOpt === 'week' ? wiz.startWeek : 1).map((s) => chip(sessionName(s, wiz.startOpt === 'week' ? wiz.startWeek : 1), `data-done-now="${s}"`, wiz.doneNow.includes(s))).join('')}</div>` : ''}
         <h3>你的动作偏好</h3>
         <p class="muted">点一次 = ❤️ 喜欢（会优先、经常安排），点两次 = 🚫 不做，再点恢复。已经自动隐藏了你的器械做不了或伤病不适合的动作。</p>
         ${['pull', 'core', 'upper', 'lower'].map((slot) => {
@@ -265,7 +268,8 @@ function bindWizard() {
       else if (d.schedule.length < 4) d.schedule.push(i);
       else return toast('最多 4 天，先取消一天');
       d.schedule.sort((a, b) => a - b);
-    } else if (ds.start) wiz.startOpt = ds.start;
+    } else if (ds.start) { wiz.startOpt = ds.start; wiz.doneNow = []; }
+    else if (ds.doneNow) toggle(wiz.doneNow, ds.doneNow);
     else if (ds.pref) {
       const id = ds.pref;
       if (d.favorites.includes(id)) { toggle(d.favorites, id); d.excluded.push(id); }
@@ -306,7 +310,7 @@ function bindWizard() {
         d.lifts[l].oneRM = 0; wiz.inputs[l] = { w: '', reps: 1 };
         render();
       }
-    } else if (t.dataset.startWeek !== undefined) { wiz.startWeek = Number(t.value); }
+    } else if (t.dataset.startWeek !== undefined) { wiz.startWeek = Number(t.value); wiz.doneNow = []; render(); }
     else if (t.dataset.p === 'sex' || t.dataset.p === 'activity') { d.profile[t.dataset.p] = t.dataset.p === 'sex' ? t.value : Number(t.value); }
   });
 }
@@ -320,6 +324,15 @@ function finishWizard() {
   d.onboarded = true;
   d.logs = state.logs;
   state = d;
+  // Weeks already trained before using the app → mark as completed outside the app
+  const today = new Date();
+  const curWeek = wiz.startOpt === 'week' ? wiz.startWeek - 1 : wiz.startOpt === 'this' ? 0 : -1;
+  for (let w = 0; w < curWeek; w++) {
+    orderFor(w + 1).slice(0, requiredFor(w + 1)).forEach((sid) => {
+      if (!['app', 'offline'].includes(sessionStatus(state, w, sid, today).status)) markOffline(state, w, sid, today);
+    });
+  }
+  if (curWeek >= 0) wiz.doneNow.forEach((sid) => markOffline(state, curWeek, sid, today));
   wiz = null;
   save();
   currentView = 'today';
@@ -353,10 +366,12 @@ function renderToday() {
   const doneToday = log.done && log.session === sid;
 
   const statusChips = order.map((s, i) => {
-    const isDone = done.includes(s) || (doneToday && s === sid);
+    const st = sessionStatus(state, pos.weekAbs, s, today).status;
     const opt = pos.week === 12 && i === 3;
-    return `<span class="pill${isDone ? ' done' : ''}">${isDone ? '✓ ' : ''}${sessionName(s, pos.week)}${opt ? '(可选)' : ''}</span>`;
+    const mark = st === 'app' ? '✓ ' : st === 'offline' ? '📝 ' : '';
+    return `<span class="pill ${st}">${mark}${sessionName(s, pos.week)}${opt ? '(可选)' : ''}</span>`;
   }).join('');
+  const notDone = order.filter((s) => !done.includes(s) && !(doneToday && s === sid));
 
   let html = `<div class="card hero">
     <div class="row between"><span class="tag">第 ${pos.cycle + 1} 轮 · 第 ${pos.week}/12 周</span><span class="muted">${WEEKDAYS[weekdayIdx(today)]}</span></div>
@@ -371,11 +386,14 @@ function renderToday() {
     else if (sid !== 'rest' && yesterday && LOWER[yesterday] && LOWER[sid]) warn = `昨天刚练${LIFT_NAMES[yesterday]}，连续两天练下肢恢复不足，建议选「疲劳」模式或换上肢日。`;
   }
   html += `<div class="card"><h2>今天想练什么？</h2>
-    <div class="chips">${order.map((s) => chip(`${sessionName(s, pos.week)}${s === rec.session ? ' ⭐' : ''}${done.includes(s) ? ' ✓' : ''}`, `data-pick="${s}"`, sid === s)).join('')}
+    <div class="chips">${order.map((s) => chip(`${sessionName(s, pos.week)}${s === rec.session ? ' ⭐' : ''}${{ app: ' ✓', offline: ' 📝' }[sessionStatus(state, pos.weekAbs, s, today).status] || ''}`, `data-pick="${s}"`, sid === s)).join('')}
     ${chip(`休息${rec.session === 'rest' ? ' ⭐' : ''}`, 'data-pick="rest"', sid === 'rest')}</div>
     <p class="muted">⭐ 推荐：${esc(rec.reason)}</p>
     ${warn ? `<p class="warn">⚠️ ${esc(warn)}</p>` : ''}
     ${sid !== 'rest' ? `<label>今天状态</label><div class="chips">${Object.entries(READINESS).map(([k, r]) => chip(r.label, `data-ready="${k}"`, readiness === k)).join('')}</div>` : ''}
+    ${notDone.length ? `<details class="offline-box"><summary>本周有训练是在 App 外完成的？</summary>
+      <p class="muted">点一下标记为 📝 App 外完成，会计入本周进度和数据统计（按计划重量估算）。</p>
+      <div class="chips">${notDone.map((s) => chip(`📝 ${sessionName(s, pos.week)}`, `data-offline="${s}"`, false)).join('')}</div></details>` : ''}
   </div>`;
 
   let kind = 'rest';
@@ -483,13 +501,18 @@ function bindToday() {
       const next = list[(list.findIndex((x) => x.id === cur.ex.id) + 1) % list.length];
       log.swaps[sid] = { ...(log.swaps[sid] || {}), [ds.swap]: next.id };
       toast(`已换成：${next.name}`);
+    } else if (ds.offline) {
+      const pos = position(state, today);
+      if (!markOffline(state, pos.weekAbs, ds.offline, today)) return toast('本周已经没有空的日期可以标记了');
+      toast(`已标记：${sessionName(ds.offline, pos.week)} 📝 App 外完成`);
     } else if (ds.act === 'done') {
-      log.session = sid; log.done = true;
+      log.session = sid; log.done = true; log.offline = false;
       toast(sid === 'rest' ? '好好休息！' : '💪 训练完成！记得吃练后餐');
     } else if (ds.act === 'undo-done') log.done = false;
     else if (ds.act === 'start-now') state.startDate = dateKey(mondayOf(today));
     else if (ds.water) log.water = Math.max(0, log.water + Number(ds.water));
     else return;
+    snapshot(today, log);
     save(); render();
   });
   root.addEventListener('change', (e) => {
@@ -498,7 +521,7 @@ function bindToday() {
     const log = logFor(dateKey(today));
     const sid = log.session || recommend(state, today).session;
     if (t.dataset.meal) log.meals[t.dataset.meal] = t.checked;
-    else if (t.dataset.amrap) { log.amrap[`${sid}:${t.dataset.amrap}:${t.dataset.i}`] = t.value ? Number(t.value) : undefined; save(); render(); return; }
+    else if (t.dataset.amrap) { log.amrap[`${sid}:${t.dataset.amrap}:${t.dataset.i}`] = t.value ? Number(t.value) : undefined; snapshot(today, log); save(); render(); return; }
     else if (t.dataset.test) {
       const pos = position(state, today);
       state.tests[pos.cycle] = { ...(state.tests[pos.cycle] || {}), [t.dataset.test]: Number(t.value) || undefined };
@@ -508,13 +531,27 @@ function bindToday() {
   });
 }
 
+function snapshot(date, log) {
+  if (log.done && !log.offline && SESSIONS[log.session]) log.result = summarizeSession(state, date, log.session, log);
+  else delete log.result;
+}
+
 /* ================= Plan ================= */
 
-function weekPreviewHtml(st, weekAbs, compact) {
+const BADGE = {
+  app: '<span class="badge app">✓ App 完成</span>',
+  offline: '<span class="badge offline">📝 App 外完成</span>',
+  missed: '<span class="badge missed">未完成</span>',
+  upcoming: '',
+};
+
+function weekPreviewHtml(st, weekAbs, compact, withStatus) {
   const week = (weekAbs % 12) + 1;
   const start = addDays(parseKey(st.startDate), weekAbs * 7);
+  const today = new Date();
   return orderFor(week).map((sid, i) => {
-    const date = addDays(start, st.schedule[i] ?? i);
+    const stat = withStatus ? sessionStatus(st, weekAbs, sid, today) : null;
+    const date = stat ? stat.date : addDays(start, st.schedule[i] ?? i);
     const s = buildSession(st, date, sid, {});
     if (!s) return '';
     const lines = s.blocks.map((b) => {
@@ -522,7 +559,10 @@ function weekPreviewHtml(st, weekAbs, compact) {
       if (compact) return '';
       return `<div class="muted">${esc(b.title)}${b.w ? ` ${fmtW(b.w)}kg` : ''} ${b.sets}×${esc(b.reps)}</div>`;
     }).join('');
-    return `<div class="preview"><div class="row between"><span class="tag">${sessionName(sid, week)}</span><span class="muted">${WEEKDAYS[weekdayIdx(date)]} ${fmtDate(date)}</span></div>${lines}</div>`;
+    let action = '';
+    if (stat && stat.status === 'offline') action = `<button class="btn tiny ghost" data-unmark="${sid}" data-week="${weekAbs}">取消标记</button>`;
+    else if (stat && stat.status !== 'app' && dayDiff(start, today) >= 0) action = `<button class="btn tiny ghost" data-mark="${sid}" data-week="${weekAbs}">标记 App 外完成</button>`;
+    return `<div class="preview ${stat ? stat.status : ''}"><div class="row between"><span class="row"><span class="tag">${sessionName(sid, week)}</span>${stat ? BADGE[stat.status] : ''}</span><span class="muted">${WEEKDAYS[weekdayIdx(date)]} ${fmtDate(date)}</span></div>${lines}${action ? `<div class="row" style="justify-content:flex-end">${action}</div>` : ''}</div>`;
   }).join('');
 }
 
@@ -541,17 +581,153 @@ function renderPlan() {
     const weekAbs = cycle * 12 + w;
     const start = addDays(parseKey(state.startDate), weekAbs * 7);
     const isCur = pos && pos.weekAbs === weekAbs;
-    html += `<details class="card week"${isCur ? ' open' : ''}><summary><b>第 ${w + 1} 周</b> ${esc(WEEKS[w].name)}
-      <span class="muted">${fmtDate(start)}起${isCur ? ' · 本周' : ''}</span></summary>${weekPreviewHtml(state, weekAbs, false)}</details>`;
+    const sts = orderFor(w + 1).slice(0, requiredFor(w + 1)).map((sid) => sessionStatus(state, weekAbs, sid, today).status);
+    const nApp = sts.filter((x) => x === 'app').length, nOff = sts.filter((x) => x === 'offline').length;
+    const past = pos && weekAbs <= pos.weekAbs;
+    const summary = !past ? '' : nApp + nOff >= sts.length ? `<span class="badge ${nApp ? 'app' : 'offline'}">${nOff && !nApp ? '📝' : '✓'} 已完成</span>`
+      : `<span class="badge${isCur ? '' : ' missed'}">${nApp + nOff}/${sts.length}</span>`;
+    html += `<details class="card week"${isCur ? ' open' : ''}><summary><b>第 ${w + 1} 周</b> ${esc(WEEKS[w].name)} ${summary}
+      <span class="muted">${fmtDate(start)}起${isCur ? ' · 本周' : ''}</span></summary>${weekPreviewHtml(state, weekAbs, false, true)}</details>`;
   }
   $('#view-plan').innerHTML = html;
 }
 function bindPlan() {
   $('#view-plan').addEventListener('click', (e) => {
-    const a = e.target.closest('button')?.dataset.act;
+    const b = e.target.closest('button');
+    if (b && (b.dataset.mark || b.dataset.unmark)) {
+      const w = Number(b.dataset.week);
+      if (b.dataset.mark) { if (!markOffline(state, w, b.dataset.mark, new Date())) return toast('这一周没有空的日期可以标记'); }
+      else unmarkOffline(state, w, b.dataset.unmark);
+      save(); render(); return;
+    }
+    const a = b?.dataset.act;
     if (a === 'edit') startWizard(true);
     else if (a === 'postpone' && confirm('把整个计划往后推一周？（本周重新按当前这一周的内容练）')) { state.startDate = dateKey(addDays(parseKey(state.startDate), 7)); save(); render(); toast('已顺延一周'); }
     else if (a === 'advance' && confirm('把计划往前调一周？（相当于跳到下一周）')) { state.startDate = dateKey(addDays(parseKey(state.startDate), -7)); save(); render(); }
+  });
+}
+
+/* ================= Stats ================= */
+
+let statsLift = 'squat';
+
+function renderStats() {
+  const today = new Date();
+  const hist = history(state);
+  const weeks = weekly(state, today, hist);
+  const pos = position(state, today);
+  if (!pos || !hist.length && !weeks.some((w) => w.app + w.offline)) {
+    $('#view-stats').innerHTML = `<div class="card"><h2>还没有训练数据</h2>
+      <p class="muted">完成第一次训练后，这里会显示力量曲线、训练量、完成日历和个人纪录。</p>
+      <p class="muted">如果之前已经在 App 外练过几周，可以在「计划」里把那些训练标记为 📝 App 外完成。</p></div>${bodyweightCard(today)}`;
+    return;
+  }
+  const nApp = hist.filter((h) => !h.offline).length, nOff = hist.length - nApp;
+  const totalVol = hist.reduce((a, h) => a + h.volume, 0);
+  const passed = weeks.filter((w) => w.cycle === pos.cycle);
+  const req = passed.reduce((a, w) => a + (w.current ? Math.max(w.app + w.offline, 0) : w.required), 0);
+  const got = passed.reduce((a, w) => a + Math.min(w.required, w.app + w.offline), 0);
+  const rate = req ? Math.round((got / req) * 100) : 0;
+
+  let html = `<div class="tiles">
+    <div class="tile"><b>${hist.length}</b><span>累计训练</span><small>App ${nApp} · App 外 ${nOff}</small></div>
+    <div class="tile"><b>${streak(weeks)}<i>周</i></b><span>连续完成</span><small>每周练满才算</small></div>
+    <div class="tile"><b>${rate}<i>%</i></b><span>本轮完成率</span><small>第 ${pos.cycle + 1} 轮</small></div>
+    <div class="tile"><b>${(totalVol / 1000).toFixed(1)}<i>吨</i></b><span>总训练量</span><small>主项 + 第二主项</small></div>
+  </div>`;
+
+  // Strength curve
+  const tm = tmSeries(state, statsLift, today);
+  const e1 = e1rmSeries(hist, statsLift);
+  const tests = e1.filter((p) => p.src === 'test');
+  const amr = e1.filter((p) => p.src === 'amrap');
+  const pr = personalRecords(state, hist)[statsLift];
+  const series = [
+    { name: 'TM', cls: 'ref', step: true, dashed: true, points: tm.map((p) => ({ x: p.date, y: p.tm, tip: `${fmtDate(p.date)} 起 · TM ${fmtW(p.tm)}kg` })) },
+    { name: '估算 1RM', cls: 's1', dots: true, points: amr.map((p) => ({ x: p.date, y: p.value, tip: `${fmtDate(p.date)} · ${fmtW(p.w)}kg × ${p.reps} 次 → 估算 1RM ${fmtW(p.value)}kg` })) },
+    { name: '测试 1RM', cls: 's1', diamond: true, label: false, points: tests.map((p) => ({ x: p.date, y: p.value, tip: `${fmtDate(p.date)} · 测试 1RM ${fmtW(p.value)}kg` })) },
+  ];
+  const gain = pr.best ? pr.best.value - pr.start : null;
+  html += `<div class="card"><h2>力量曲线</h2>
+    <div class="chips">${LIFTS.map((l) => chip(LIFT_NAMES[l], `data-lift="${l}"`, statsLift === l)).join('')}</div>
+    <div class="legend"><span><i class="lg ref dashed"></i>训练最大重量 TM</span><span><i class="lg s1 dot"></i>估算 1RM（"+"组）</span><span><i class="lg s1 diamond"></i>测试 1RM</span></div>
+    ${lineChart({ series })}
+    <div class="kv"><span>起始 1RM</span><b>${fmtW(pr.start)}kg</b></div>
+    <div class="kv"><span>最佳估算 1RM</span><b>${pr.best ? `${fmtW(pr.best.value)}kg` : '—'}${gain !== null ? ` <em class="${gain >= 0 ? 'up' : 'down'}">${gain >= 0 ? '+' : ''}${fmtW(gain)}</em>` : ''}</b></div>
+    <div class="kv"><span>App 记录的最大重量</span><b>${pr.heaviest ? `${fmtW(pr.heaviest.w)}kg × ${pr.heaviest.reps}` : '—'}</b></div>
+    ${amr.length ? '' : '<p class="muted">在带 "+" 的组里填写实际次数，就能看到估算 1RM 曲线。</p>'}
+    ${e1.length ? `<details><summary class="muted">查看数据表</summary><table class="tm">
+      <tr><th>日期</th><th>重量×次数</th><th>1RM</th></tr>
+      ${e1.slice().reverse().map((p) => `<tr><td>${fmtDate(p.date)}</td><td>${fmtW(p.w)}×${p.reps}${p.src === 'test' ? '（测试）' : ''}</td><td>${fmtW(p.value)}</td></tr>`).join('')}</table></details>` : ''}
+  </div>`;
+
+  // Weekly volume
+  const recent = weeks.slice(-12);
+  const bars = recent.map((w) => ({
+    label: `W${w.week}`,
+    tip: `第 ${w.cycle + 1} 轮第 ${w.week} 周 · ${w.app + w.offline}/${w.required} 次 · App ${(w.appVolume / 1000).toFixed(1)} 吨 · App 外 ${(w.offlineVolume / 1000).toFixed(1)} 吨`,
+    segments: [{ value: w.appVolume / 1000, cls: 's1' }, { value: w.offlineVolume / 1000, cls: 's1soft' }],
+  }));
+  html += `<div class="card"><h2>每周训练量 <span class="muted">（吨）</span></h2>
+    <div class="legend"><span><i class="lg s1"></i>App 记录</span><span><i class="lg s1soft"></i>App 外（按计划估算）</span></div>
+    ${barChart({ bars })}
+    <p class="muted">减载周（第 4、8 周）训练量下降是正常的。</p></div>`;
+
+  // Calendar
+  const firstW = Math.max(0, pos.weekAbs - 11);
+  const cells = [], labels = [];
+  for (let w = firstW; w <= pos.weekAbs; w++) {
+    const start = addDays(parseKey(state.startDate), w * 7);
+    labels.push((w - firstW) % 3 === 0 ? `W${(w % 12) + 1}` : '');
+    cells.push(Array.from({ length: 7 }, (_, d) => {
+      const date = addDays(start, d);
+      const l = state.logs[dateKey(date)];
+      const label = `${fmtDate(date)} ${WEEKDAYS[weekdayIdx(date)]}`;
+      if (l && l.done && SESSIONS[l.session]) return { cls: l.offline ? 'off' : 'app', tip: `${label} · ${sessionName(l.session, (w % 12) + 1)} · ${l.offline ? 'App 外完成' : 'App 完成'}` };
+      if (dayDiff(today, date) > 0) return { cls: 'future' };
+      return { cls: 'none', tip: `${label} · 无训练` };
+    }));
+  }
+  html += `<div class="card"><h2>训练日历</h2>
+    <div class="legend"><span><i class="lg s1"></i>App 完成</span><span><i class="lg s1soft"></i>App 外完成</span><span><i class="lg none"></i>未训练</span></div>
+    ${calendarChart(cells, labels)}
+    <h3>每周完成情况</h3>
+    <div class="weekbar">${recent.map((w) => `<span class="${w.app + w.offline >= w.required ? 'full' : w.current ? 'cur' : ''}" data-tip="第 ${w.week} 周 ${w.app + w.offline}/${w.required}">${w.app + w.offline}/${w.required}</span>`).join('')}</div></div>`;
+
+  // Recent sessions
+  html += `<div class="card"><h2>最近训练</h2>
+    ${hist.slice(-10).reverse().map((h) => `<div class="hist">
+      <div class="row between"><span><b>${sessionName(h.session, h.pos.week)}</b> <span class="muted">第 ${h.pos.week} 周 · ${fmtDate(h.date)}</span></span>${BADGE[h.offline ? 'offline' : 'app']}</div>
+      <div class="muted">${esc(h.variant)}${h.top ? ` · 最重 ${fmtW(h.top.w)}kg × ${h.top.reps}` : ''}${h.e1rm ? ` · 1RM≈${fmtW(h.e1rm.value)}` : ''} · ${(h.volume / 1000).toFixed(2)} 吨</div></div>`).join('')}</div>`;
+
+  html += bodyweightCard(today);
+  $('#view-stats').innerHTML = html;
+}
+
+function bodyweightCard(today) {
+  const pts = Object.entries(state.bodyweight).sort().map(([k, v]) => ({ x: parseKey(k), y: v, tip: `${fmtDate(parseKey(k))} · ${v}kg` }));
+  const first = pts[0], last = pts[pts.length - 1];
+  return `<div class="card"><h2>体重</h2>
+    <div class="row"><input class="grow" type="number" inputmode="decimal" step="0.1" id="bwInput" placeholder="今天的体重 (kg)" value="${state.bodyweight[dateKey(today)] ?? ''}">
+      <button class="btn small" data-act="bw">记录</button></div>
+    ${pts.length > 1 ? lineChart({ series: [{ name: '体重', cls: 's1', dots: pts.length < 30, points: pts }], height: 160 }) : '<p class="muted">记录两次以上就能看到体重曲线。增肌期每周增长 0.25–0.5kg 为宜。</p>'}
+    ${pts.length > 1 ? `<p class="muted">${fmtDate(first.x)} 至今 ${last.y - first.y >= 0 ? '+' : ''}${(last.y - first.y).toFixed(1)}kg</p>` : ''}</div>`;
+}
+
+function bindStats() {
+  const root = $('#view-stats');
+  bindChartTips(root);
+  root.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.lift) { statsLift = b.dataset.lift; render(); }
+    else if (b.dataset.act === 'bw') {
+      const v = Number($('#bwInput').value);
+      if (!(v > 30 && v < 300)) return toast('请输入正确的体重');
+      state.bodyweight[dateKey(new Date())] = v;
+      state.profile.weight = v;
+      save(); render(); toast('已记录，营养目标已按新体重更新');
+    }
   });
 }
 
@@ -585,6 +761,7 @@ function bindNutrition() {
     const k = e.target.dataset.profile;
     if (!k) return;
     state.profile[k] = Number(e.target.value) || state.profile[k];
+    if (k === 'weight') state.bodyweight[dateKey(new Date())] = state.profile.weight;
     save(); render();
   });
   root.addEventListener('click', (e) => {
@@ -750,14 +927,14 @@ function render() {
   const inWizard = !state.onboarded || wiz;
   if (!state.onboarded && !wiz) { startWizard(false); return; }
   document.body.classList.toggle('wizard-mode', !!inWizard);
-  const titles = { today: '今天', plan: '12 周计划', nutrition: '营养', settings: '我的' };
+  const titles = { today: '今天', plan: '12 周计划', stats: '数据分析', nutrition: '营养', settings: '我的' };
   $('#pageTitle').textContent = inWizard ? '设置你的计划' : titles[currentView];
   const d = new Date();
   $('#dateLabel').textContent = `${d.getMonth() + 1}月${d.getDate()}日 ${WEEKDAYS[weekdayIdx(d)]}`;
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', inWizard ? v.id === 'view-wizard' : v.id === `view-${currentView}`));
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.view === currentView));
   if (inWizard) return renderWizard();
-  ({ today: renderToday, plan: renderPlan, nutrition: renderNutrition, settings: renderSettings })[currentView]();
+  ({ today: renderToday, plan: renderPlan, stats: renderStats, nutrition: renderNutrition, settings: renderSettings })[currentView]();
 }
 
 document.querySelector('.tabbar').addEventListener('click', (e) => {
@@ -766,7 +943,7 @@ document.querySelector('.tabbar').addEventListener('click', (e) => {
   currentView = b.dataset.view;
   render(); window.scrollTo(0, 0);
 });
-bindWizard(); bindToday(); bindPlan(); bindNutrition(); bindSettings();
+bindWizard(); bindToday(); bindPlan(); bindStats(); bindNutrition(); bindSettings();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !wiz) { scheduleReminders(); render(); } });
