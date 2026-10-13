@@ -1,6 +1,6 @@
-# 5/3/1 训练助手
+# Ianz Fitness
 
-一个可以安装到手机主屏幕的网页 App（PWA）。内置「3 个月力量训练挑战计划」（5/3/1，一周四练），根据你的身体数据、最大重量、伤病、器械和动作偏好，生成每天的训练和营养计划。数据只保存在你自己的手机里。
+一个可以安装到手机主屏幕的网页 App（PWA）。内置「3 个月力量训练挑战计划」（5/3/1，一周四练），根据你的身体数据、最大重量、伤病、器械和动作偏好，生成每天的训练和营养计划。可以只在本机使用，也可以用邮箱 / 手机验证码注册账号，把数据保存到云端。
 
 ## 界面
 
@@ -16,6 +16,20 @@
 | **训练（圆形按钮）** | 进入训练模式：逐组打勾，自动开始组间休息计时（主项 3 分钟，第二主项 2 分钟，辅助 75 秒），可 +30 秒或跳过 |
 
 饮食记录：点早餐 / 午餐等，可以「按建议记录」，也可以点常见食物一键添加（鸡蛋、鸡胸肉、米饭、蛋白粉等），或自定义输入蛋白、碳水、脂肪克数。
+
+## 账号与云同步（可选）
+
+用 [Supabase](https://supabase.com)（免费）提供验证码登录和云端保存。没有配置时，App 只把数据存在手机本地。
+
+1. 在 supabase.com 注册并新建项目（地区建议选 Singapore 或 Tokyo）
+2. **SQL Editor** → 粘贴 `supabase/schema.sql` → Run（建表，并设置“每个人只能读写自己的数据”）
+3. **Authentication → Email Templates → Magic Link**，把邮件内容改成包含验证码，例如：
+   `<h2>Ianz Fitness 登录验证码</h2><p>你的验证码是：<b>{{ .Token }}</b>，10 分钟内有效。</p>`
+4. Supabase 自带的邮件服务每小时只能发很少几封，给朋友用之前，在 **Project Settings → Authentication → SMTP Settings** 配置自己的发信邮箱（例如 QQ 邮箱 / 163 邮箱的 SMTP，或 Resend）
+5. **Project Settings → API**，把 Project URL 和 anon public key 填到 `js/config.js`
+6. 手机号登录：在 Authentication → Providers → Phone 里接入短信服务商后，把 `js/config.js` 里的 `phone` 改为 `true`
+
+同步规则：每次修改后自动上传，打开 App 时拉取最新数据，以最后修改的一份为准。如果一台手机上已经有数据、而账号在云端也有数据，会询问保留哪一份。退出登录会清除这台手机上的数据（云端保留）。
 
 ## 第一次打开：问卷
 
@@ -131,6 +145,10 @@ js/engine.js      计算：TM、每日训练、推荐与重新排期、辅助动
 js/stats.js       历史记录、App 外完成标记、训练量、估算 1RM、连续周数
 js/charts.js      SVG 图表（折线、柱状、日历热力图）与点击提示
 js/core.js        状态存储、通用组件、图标、底部弹窗、提醒和日历导出
+js/config.js      云端账号配置（Supabase 地址和公开 key）
+js/cloud.js       验证码登录与云同步
+js/vendor/        supabase-js（登录与数据库客户端）
+supabase/         数据库建表 SQL
 js/wizard.js      问卷
 js/home.js        训练页（饮食记录、今日训练）和训练模式（休息计时）
 js/challenge.js   挑战页（12 周计划）

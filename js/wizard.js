@@ -33,12 +33,13 @@ function renderWizard() {
   switch (wiz.step) {
     case 0:
       body = `<div class="hero-big">🏋️</div>
-        <h2>欢迎使用 5/3/1 训练助手</h2>
+        <h2>欢迎使用 Ianz Fitness</h2>
         <p>回答几个问题（约 2 分钟），我会根据你的身体数据、最大重量、伤病和器械情况，生成：</p>
         <ul class="tips"><li>12 周 5/3/1 力量计划，每一组都算好具体重量</li>
         <li>每天适合你的拉类、核心和辅助动作（自动避开你做不了的动作）</li>
         <li>训练日 / 休息日的营养目标和餐次安排</li></ul>
-        <p class="muted">每天你还可以告诉我「今天想练什么」和「今天状态如何」，计划会自动调整。</p>`;
+        <p class="muted">每天你还可以告诉我「今天想练什么」和「今天状态如何」，计划会自动调整。</p>
+        ${cloudEnabled() && !cloud.user ? '<div class="card account"><b>已经有账号？</b><p class="muted">登录后自动恢复你的计划和训练记录。</p><button class="btn ghost block" data-act="login">验证码登录</button></div>' : ''}`;
       break;
     case 1:
       body = `<h2>基础信息</h2><p class="muted">用于计算你的热量和营养需求。</p>

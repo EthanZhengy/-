@@ -1,6 +1,6 @@
-const CACHE = 'trainer-v4';
+const CACHE = 'ianz-v5';
 const ASSETS = ['./', 'index.html', 'styles.css', 'manifest.json', 'icons/icon.svg',
-  'js/data.js', 'js/engine.js', 'js/stats.js', 'js/charts.js', 'js/core.js', 'js/wizard.js',
+  'js/data.js', 'js/engine.js', 'js/stats.js', 'js/charts.js', 'js/core.js', 'js/vendor/supabase.js', 'js/config.js', 'js/cloud.js', 'js/wizard.js',
   'js/home.js', 'js/challenge.js', 'js/library.js', 'js/history.js', 'js/me.js', 'js/app.js'];
 
 self.addEventListener('install', (e) => {
@@ -15,7 +15,8 @@ self.addEventListener('activate', (e) => {
 
 // Network first so updates show up; fall back to cache when offline.
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
+  // Only cache the app itself; never cache cloud API / login requests.
+  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); return res; })

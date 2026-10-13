@@ -78,7 +78,7 @@ function bindSettings() {
     if (a === 'edit') startWizard(true);
     else if (a === 'test-notify') { if (await requestNotify()) { const r = remindersFor(new Date())[0]; notify(r.title, r.body); } else toast('未获得通知权限'); }
     else if (a === 'ics') exportIcs();
-    else if (a === 'export') download(`531备份-${dateKey(new Date())}.json`, JSON.stringify(state, null, 2), 'application/json');
+    else if (a === 'export') download(`IanzFitness备份-${dateKey(new Date())}.json`, JSON.stringify(state, null, 2), 'application/json');
     else if (a === 'import') $('#importFile').click();
     else if (a === 'reset' && confirm('会清空所有数据和训练记录，确定吗？')) { state = defaultState(); save(); render(); }
   });
@@ -91,7 +91,7 @@ function importJson(file) {
       const d = JSON.parse(r.result);
       if (!d.lifts || !d.profile) throw new Error();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
-      state = loadState(); render(); toast('导入成功');
+      state = loadState(); save(); render(); toast('导入成功');
     } catch { toast('文件格式不正确'); }
   };
   r.readAsText(file);
@@ -107,6 +107,7 @@ function renderMe() {
       <div class="grow"><h2>${p.name ? esc(p.name) : '未设置昵称'}</h2>
         <div class="muted">${p.sex === 'male' ? '男' : '女'} · ${p.age} 岁 · ${p.height}cm · ${p.weight}kg · ${GOALS[p.goal].label}</div>
         <div class="muted">${pos ? `第 ${pos.cycle + 1} 轮第 ${pos.week} 周` : '计划未开始'} · 已训练 ${n} 次</div></div></div>
+    ${accountCard()}
     <div class="card"><h2>我的训练设置</h2>
       <div class="kv"><span>主项动作</span><b>${LIFTS.map((l) => variantOf(state, l).name.replace(/（.*）/, '')).join('、')}</b></div>
       <div class="kv"><span>训练日</span><b>${state.schedule.map((d) => WEEKDAYS[d]).join('、')} ${esc(state.trainTime)}</b></div>

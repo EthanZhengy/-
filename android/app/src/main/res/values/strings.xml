@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">5/3/1 训练助手</string>
-    <string name="title_activity_main">5/3/1 训练助手</string>
+    <string name="app_name">Ianz Fitness</string>
+    <string name="title_activity_main">Ianz Fitness</string>
     <string name="package_name">com.ethanzhengy.trainer531</string>
     <string name="custom_url_scheme">com.ethanzhengy.trainer531</string>
 </resources>

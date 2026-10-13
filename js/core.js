@@ -22,18 +22,29 @@ function defaultState() {
     startDate: dateKey(mondayOf(new Date())),
     tests: {}, logs: {}, bodyweight: {},
     reminders: { enabled: false, morning: '07:30', meals: false },
+    // updatedAt: last local change; syncedAt: last successful cloud upload; owner: account the data belongs to
+    meta: { updatedAt: 0, syncedAt: 0, owner: null },
   };
+}
+/** Fill in fields added in later versions so older saved data keeps working. */
+function normalizeState(s) {
+  const d = defaultState();
+  return { ...d, ...s, profile: { ...d.profile, ...s.profile }, lifts: { ...d.lifts, ...s.lifts },
+    reminders: { ...d.reminders, ...s.reminders }, meta: { ...d.meta, ...s.meta } };
 }
 function loadState() {
   try {
     const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (!s) return defaultState();
-    const d = defaultState();
-    return { ...d, ...s, profile: { ...d.profile, ...s.profile }, lifts: { ...d.lifts, ...s.lifts }, reminders: { ...d.reminders, ...s.reminders } };
+    return s ? normalizeState(s) : defaultState();
   } catch { return defaultState(); }
 }
 let state = loadState();
-const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+/** Persist locally, then (when signed in) sync to the cloud shortly after. */
+function save() {
+  state.meta.updatedAt = Date.now();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (typeof cloudPushSoon === 'function') cloudPushSoon();
+}
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
 /* ---------- helpers ---------- */
@@ -126,7 +137,7 @@ function exportIcs() {
   const pad = (n) => String(n).padStart(2, '0');
   const ie = (s) => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//trainer-531//CN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:5/3/1 训练'];
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ianz-fitness//CN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Ianz Fitness'];
   const today = new Date();
   for (let i = 0; i < 28; i++) {
     const date = addDays(today, i);
@@ -148,7 +159,7 @@ function exportIcs() {
       'END:VEVENT');
   }
   lines.push('END:VCALENDAR');
-  download(`531训练-${dateKey(today)}.ics`, lines.map(foldLine).join('\r\n'), 'text/calendar');
+  download(`IanzFitness训练-${dateKey(today)}.ics`, lines.map(foldLine).join('\r\n'), 'text/calendar');
   toast('已导出，用手机打开文件导入日历');
 }
 

@@ -28,9 +28,10 @@ $('[data-fab]').addEventListener('click', () => {
   currentView = 'workout'; render(); window.scrollTo(0, 0);
 });
 
-bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings();
+bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !wiz) { scheduleReminders(); render(); } });
+cloudInit();
 render();
 scheduleReminders();
