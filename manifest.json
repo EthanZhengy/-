@@ -1,6 +1,6 @@
 {
-  "name": "今日训练 · 训练与营养提醒",
-  "short_name": "今日训练",
+  "name": "5/3/1 训练助手 · 训练与营养",
+  "short_name": "5/3/1",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

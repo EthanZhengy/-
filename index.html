@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0f766e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="今日训练">
-<title>今日训练</title>
+<title>5/3/1 训练助手</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon.svg">
@@ -19,7 +19,8 @@
 </header>
 
 <main>
-  <section id="view-today" class="view active"></section>
+  <section id="view-wizard" class="view"></section>
+  <section id="view-today" class="view"></section>
   <section id="view-plan" class="view"></section>
   <section id="view-nutrition" class="view"></section>
   <section id="view-settings" class="view"></section>
@@ -27,12 +28,14 @@
 
 <nav class="tabbar">
   <button data-view="today" class="active"><span>🏋️</span>今天</button>
-  <button data-view="plan"><span>📋</span>计划</button>
+  <button data-view="plan"><span>📅</span>计划</button>
   <button data-view="nutrition"><span>🥗</span>营养</button>
-  <button data-view="settings"><span>⚙️</span>设置</button>
+  <button data-view="settings"><span>👤</span>我的</button>
 </nav>
 
 <div id="toast" class="toast" hidden></div>
+<script src="data.js"></script>
+<script src="engine.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
