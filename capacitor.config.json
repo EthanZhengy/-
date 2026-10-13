@@ -1,0 +1,10 @@
+{
+  "appId": "com.ethanzhengy.trainer531",
+  "appName": "5/3/1 训练助手",
+  "webDir": "www",
+  "android": { "backgroundColor": "#f2f3f5" },
+  "ios": { "backgroundColor": "#f2f3f5", "contentInset": "never" },
+  "plugins": {
+    "LocalNotifications": { "smallIcon": "ic_stat_notify", "iconColor": "#1677ff" }
+  }
+}
