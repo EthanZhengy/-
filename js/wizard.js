@@ -108,7 +108,7 @@ function renderWizard() {
           ${chip('我已经在练了', 'data-start="week"', wiz.startOpt === 'week')}
         </div>
         ${wiz.startOpt === 'week' ? `<label>本周是第几周</label><select data-start-week>${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${wiz.startWeek === i + 1 ? 'selected' : ''}>第 ${i + 1} 周 · ${WEEKS[i].name}</option>`).join('')}</select>
-          ${wiz.startWeek > 1 ? `<p class="muted">第 1–${wiz.startWeek - 1} 周会标记为 <span class="badge offline">📝 App 外完成</span>，之后可以在「计划」里逐次修改。</p>` : ''}` : ''}
+          ${wiz.startWeek > 1 ? `<p class="muted">第 1–${wiz.startWeek - 1} 周会标记为 <span class="badge offline">📝 App 外完成</span>，之后可以在「挑战」里逐次修改。</p>` : ''}` : ''}
         ${wiz.startOpt === 'this' || wiz.startOpt === 'week' ? `<label>这周已经练过哪些？（在 App 外完成的）</label>
           <div class="chips">${orderFor(wiz.startOpt === 'week' ? wiz.startWeek : 1).map((s) => chip(sessionName(s, wiz.startOpt === 'week' ? wiz.startWeek : 1), `data-done-now="${s}"`, wiz.doneNow.includes(s))).join('')}</div>` : ''}
         <h3>你的动作偏好</h3>
