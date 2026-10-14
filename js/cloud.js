@@ -22,6 +22,8 @@ function cloudInit() {
     if (cloud.user && cloud.user.id !== prev) setTimeout(cloudPull, 0);
     if (!cloud.user) cloud.status = 'off';
     if ((cloud.user && cloud.user.id) !== prev) render(); else cloudRefreshUi();
+    // Accounts created with a one-time code must set a password once (asked again each launch until done)
+    if (cloud.user && !hasPassword() && !cloud.pwPrompted) { cloud.pwPrompted = true; setTimeout(() => openPasswordSheet(true), 600); }
   });
   window.addEventListener('online', () => { if (cloud.user && state.meta.syncedAt < state.meta.updatedAt) cloudPush(); });
 }
@@ -122,42 +124,59 @@ async function cloudDeleteData() {
 
 /* ---------- UI ---------- */
 
+const hasPassword = () => !!(cloud.user && cloud.user.user_metadata && cloud.user.user_metadata.has_password);
+
 function accountCard() {
   if (!cloudEnabled()) return '';
   if (!cloud.user) {
     return `<div class="card account"><div class="row between"><h2>登录 / 注册</h2><span class="tag">云端保存</span></div>
-      <p class="muted">用邮箱${CLOUD_CONFIG.phone ? '或手机号' : ''}验证码登录，数据自动保存到云端，换手机、删了 App 也不会丢。</p>
-      <button class="btn block" data-act="login">验证码登录</button></div>`;
+      <p class="muted">用邮箱${CLOUD_CONFIG.phone ? '或手机号' : ''}登录，数据自动保存到云端，换手机、删了 App 也不会丢。</p>
+      <button class="btn block" data-act="login">登录 / 注册</button></div>`;
   }
   const st = syncText();
   return `<div class="card account"><div class="row between"><h2>云端账号</h2><span class="sync ${cloud.status}">${esc(st)}</span></div>
     <div class="kv"><span>账号</span><b>${esc(accountLabel())}</b></div>
-    <div class="row wrap"><button class="btn small ghost" data-act="sync-now">立即同步</button>
+    <div class="kv"><span>登录密码</span><b>${hasPassword() ? '已设置' : '<span class="warn-text">未设置</span>'}</b></div>
+    <button class="btn block ${hasPassword() ? 'ghost' : ''}" data-act="set-password">${hasPassword() ? '修改密码' : '设置登录密码'}</button>
+    <div class="row wrap" style="margin-top:12px"><button class="btn small ghost" data-act="sync-now">立即同步</button>
       <button class="btn small ghost" data-act="logout">退出登录</button>
       <button class="btn small danger" data-act="delete-cloud">删除云端数据</button></div></div>`;
 }
 
-let login = { mode: 'email', target: '', sent: false };
+/* ---------- sign in: one-time code or password ---------- */
+let login = { method: 'code', mode: 'email', target: '', sent: false };
 function openLoginSheet() {
-  const phoneOk = CLOUD_CONFIG.phone;
   const left = Math.max(0, Math.ceil((cloud.cooldownUntil - Date.now()) / 1000));
-  openSheet('验证码登录', `
-    ${phoneOk ? `<div class="utabs left">${[['email', '邮箱'], ['phone', '手机号']].map(([k, l]) => `<button data-login-mode="${k}" class="${login.mode === k ? 'on' : ''}">${l}</button>`).join('')}</div>` : ''}
-    <label>${login.mode === 'email' ? '邮箱' : '手机号（中国大陆）'}</label>
+  const targetInput = `<label>${login.mode === 'email' ? '邮箱' : '手机号（中国大陆）'}</label>
     <div class="row">${login.mode === 'phone' ? '<span class="prefix">+86</span>' : ''}
-      <input id="loginTarget" class="grow" ${login.mode === 'email' ? 'type="email" inputmode="email" placeholder="you@example.com" autocomplete="email"' : 'type="tel" inputmode="numeric" placeholder="手机号" autocomplete="tel"'} value="${esc(login.target)}">
-      <button class="btn small" data-act="send-code" ${left ? 'disabled' : ''}>${left ? `${left}s` : login.sent ? '重新发送' : '发送验证码'}</button></div>
-    ${login.sent ? `<label>验证码</label><input id="loginCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="输入收到的验证码">
-      <button class="btn block" data-act="verify-code">登录</button>
-      <p class="muted">${login.mode === 'email' ? '没收到？看看垃圾邮件文件夹。' : '验证码几分钟内有效。'}</p>` : ''}
-    <p class="muted">第一次使用会自动注册。登录后，这台手机上的数据会和云端同步。</p>`, { type: 'login', reopen: openLoginSheet });
+      <input id="loginTarget" class="grow" ${login.mode === 'email' ? 'type="email" inputmode="email" placeholder="you@example.com" autocomplete="username"' : 'type="tel" inputmode="numeric" placeholder="手机号" autocomplete="username"'} value="${esc(login.target)}">
+      ${login.method === 'code' ? `<button class="btn small" data-act="send-code" ${left ? 'disabled' : ''}>${left ? `${left}s` : login.sent ? '重新发送' : '发送验证码'}</button>` : ''}</div>`;
+  const body = login.method === 'code'
+    ? `${targetInput}
+      ${login.sent ? `<label>验证码</label><input id="loginCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="输入收到的验证码">
+        <button class="btn block" data-act="verify-code">登录</button>
+        <p class="muted">${login.mode === 'email' ? '没收到？看看垃圾邮件文件夹。' : '验证码几分钟内有效。'}</p>` : ''}
+      <p class="muted">第一次使用会自动注册，注册后需要设置一个登录密码。</p>`
+    : `${targetInput}
+      <label>密码</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="登录密码">
+      <button class="btn block" data-act="password-login">登录</button>
+      <p class="muted">还没有账号或忘记密码？<button class="link" data-login-method="code">用验证码登录</button>，登录后可以重新设置密码。</p>`;
+  openSheet('登录 / 注册', `
+    <div class="seg">${[['code', '验证码登录'], ['password', '密码登录']].map(([k, l]) => `<button data-login-method="${k}" class="${login.method === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    ${CLOUD_CONFIG.phone ? `<div class="utabs left">${[['email', '邮箱'], ['phone', '手机号']].map(([k, l]) => `<button data-login-mode="${k}" class="${login.mode === k ? 'on' : ''}">${l}</button>`).join('')}</div>` : ''}
+    ${body}`, { type: 'login', reopen: openLoginSheet });
 }
 const loginTarget = () => (login.mode === 'phone' ? `+86${login.target.replace(/\D/g, '')}` : login.target.trim().toLowerCase());
+const targetCredential = () => (login.mode === 'email' ? { email: loginTarget() } : { phone: loginTarget() });
+function readTarget() {
+  login.target = $('#loginTarget').value.trim();
+  if (login.mode === 'email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(login.target)) { toast('请输入正确的邮箱'); return false; }
+  if (login.mode === 'phone' && !/^1\d{10}$/.test(login.target.replace(/\D/g, ''))) { toast('请输入 11 位手机号'); return false; }
+  return true;
+}
 
 async function sendCode() {
-  login.target = $('#loginTarget').value.trim();
-  if (login.mode === 'email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(login.target)) return toast('请输入正确的邮箱');
-  if (login.mode === 'phone' && !/^1\d{10}$/.test(login.target.replace(/\D/g, ''))) return toast('请输入 11 位手机号');
+  if (!readTarget()) return;
   const { error } = await cloud.client.auth.signInWithOtp(login.mode === 'email'
     ? { email: loginTarget(), options: { shouldCreateUser: true } }
     : { phone: loginTarget() });
@@ -177,22 +196,88 @@ async function sendCode() {
 async function verifyCode() {
   const token = ($('#loginCode').value || '').replace(/\s/g, '');
   if (!/^\d{6,10}$/.test(token)) return toast('请输入收到的数字验证码');
-  const { error } = await cloud.client.auth.verifyOtp(login.mode === 'email'
-    ? { email: loginTarget(), token, type: 'email' }
-    : { phone: loginTarget(), token, type: 'sms' });
-  if (error) return toast(`登录失败：${error.message}`);
-  login = { mode: login.mode, target: '', sent: false };
+  cloud.pwPrompted = true; // asked right below instead of from the auth listener
+  const { data, error } = await cloud.client.auth.verifyOtp({ ...targetCredential(), token, type: login.mode === 'email' ? 'email' : 'sms' });
+  if (error) { cloud.pwPrompted = false; return toast(`登录失败：${error.message}`); }
+  login = { method: 'code', mode: login.mode, target: '', sent: false };
+  if (data && data.user) cloud.user = data.user;
+  if (!hasPassword()) return openPasswordSheet(true);
   closeSheet();
   toast('登录成功，正在同步数据');
+}
+async function passwordLogin() {
+  if (!readTarget()) return;
+  const password = $('#loginPassword').value;
+  if (!password) return toast('请输入密码');
+  cloud.pwPrompted = true;
+  const { error } = await cloud.client.auth.signInWithPassword({ ...targetCredential(), password });
+  if (error) {
+    cloud.pwPrompted = false;
+    return toast(/invalid/i.test(error.message) ? '账号或密码不正确（还没设置过密码的话，请用验证码登录）' : `登录失败：${error.message}`);
+  }
+  login = { method: 'password', mode: login.mode, target: '', sent: false };
+  closeSheet();
+  toast('登录成功，正在同步数据');
+}
+
+/* ---------- password: at least 12 characters with a letter, a digit and a special character ---------- */
+const PW_RULES = [
+  ['至少 12 位', (p) => p.length >= 12],
+  ['包含字母', (p) => /[A-Za-z]/.test(p)],
+  ['包含数字', (p) => /\d/.test(p)],
+  ['包含特殊字符（如 !@#$%&*）', (p) => /[^A-Za-z0-9\s]/.test(p)],
+];
+const pwRulesHtml = (p) => PW_RULES.map(([label, ok]) => `<li class="${ok(p) ? 'ok' : ''}">${ok(p) ? '✓' : '○'} ${label}</li>`).join('');
+
+function openPasswordSheet(first) {
+  if (!cloud.user) return;
+  openSheet(first ? '设置登录密码' : hasPassword() ? '修改密码' : '设置登录密码', `
+    ${first ? `<p class="muted">注册成功！为账号 <b>${esc(accountLabel())}</b> 设置一个密码，以后可以直接用密码登录，不用每次收验证码。</p>` : ''}
+    <label>新密码</label><input id="pw1" type="password" autocomplete="new-password" placeholder="至少 12 位">
+    <ul class="pw-rules" id="pwRules">${pwRulesHtml('')}</ul>
+    <label>再输入一次</label><input id="pw2" type="password" autocomplete="new-password" placeholder="确认密码">
+    <button class="btn block" data-act="save-password">保存密码</button>
+    ${first ? '<button class="btn ghost block" data-act="skip-password">稍后设置</button><p class="muted">稍后设置的话，下次打开 App 会再提醒你。</p>' : ''}`,
+  { type: 'password', first });
+}
+async function savePassword() {
+  const p1 = $('#pw1').value, p2 = $('#pw2').value;
+  const bad = PW_RULES.find(([, ok]) => !ok(p1));
+  if (bad) return toast(`密码需要${bad[0].replace(/（.*）/, '')}`);
+  if (p1 !== p2) return toast('两次输入的密码不一致');
+  const { data, error } = await cloud.client.auth.updateUser({ password: p1, data: { has_password: true } });
+  if (error) {
+    return toast(/reauth|recent/i.test(error.message) ? '为了安全，请先退出并用验证码重新登录，再修改密码' : `保存失败：${error.message}`);
+  }
+  if (data && data.user) cloud.user = data.user;
+  closeSheet();
+  toast('密码已设置，以后可以用密码登录');
+  render();
 }
 
 function bindCloud() {
   $('#sheet').addEventListener('click', (e) => {
     const b = e.target.closest('button');
-    if (!b || !sheetCtx || sheetCtx.type !== 'login') return;
-    if (b.dataset.loginMode) { login = { mode: b.dataset.loginMode, target: '', sent: false }; openLoginSheet(); }
-    else if (b.dataset.act === 'send-code') sendCode();
-    else if (b.dataset.act === 'verify-code') verifyCode();
+    if (!b || !sheetCtx) return;
+    if (sheetCtx.type === 'login') {
+      if (b.dataset.loginMethod) { login.method = b.dataset.loginMethod; login.sent = false; openLoginSheet(); }
+      else if (b.dataset.loginMode) { login = { method: login.method, mode: b.dataset.loginMode, target: '', sent: false }; openLoginSheet(); }
+      else if (b.dataset.act === 'send-code') sendCode();
+      else if (b.dataset.act === 'verify-code') verifyCode();
+      else if (b.dataset.act === 'password-login') passwordLogin();
+    } else if (sheetCtx.type === 'password') {
+      if (b.dataset.act === 'save-password') savePassword();
+      else if (b.dataset.act === 'skip-password') { closeSheet(); toast('登录成功，正在同步数据'); }
+    }
+  });
+  $('#sheet').addEventListener('input', (e) => {
+    if (e.target.id === 'pw1') $('#pwRules').innerHTML = pwRulesHtml(e.target.value);
+  });
+  $('#sheet').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !sheetCtx) return;
+    if (e.target.id === 'loginPassword') passwordLogin();
+    else if (e.target.id === 'loginCode') verifyCode();
+    else if (e.target.id === 'pw2') savePassword();
   });
   // account buttons live on the 我的 page and on the questionnaire's welcome step
   document.addEventListener('click', (e) => {
@@ -200,6 +285,7 @@ function bindCloud() {
     if (!b || !cloud.client) return;
     const a = b.dataset.act;
     if (a === 'login') openLoginSheet();
+    else if (a === 'set-password') openPasswordSheet(false);
     else if (a === 'sync-now') cloudPull();
     else if (a === 'logout') cloudSignOut();
     else if (a === 'delete-cloud') cloudDeleteData();
