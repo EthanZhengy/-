@@ -5,7 +5,7 @@
  * phone: true shows SMS login — only enable after configuring an SMS provider in Supabase.
  */
 const CLOUD_CONFIG = {
-  url: '',
-  anonKey: '',
+  url: 'https://atpinhpsvsmgaansocse.supabase.co',
+  anonKey: 'sb_publishable_GDIRySztsJqCohdFwGgIdw_vkeSNEKb',
   phone: false,
 };
