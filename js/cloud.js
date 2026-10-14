@@ -19,7 +19,8 @@ function cloudInit() {
   const cleanUrl = () => window.history.replaceState(null, '', location.pathname);
   if (urlError) {
     cleanUrl();
-    setTimeout(() => alert(`Google 登录没有成功：\n${urlError.replace(/\+/g, ' ')}\n\n请截图发给开发者，或先用邮箱登录。`), 300);
+    const msg = (() => { try { return decodeURIComponent(urlError.replace(/\+/g, ' ')); } catch { return urlError; } })();
+    setTimeout(() => alert(`Google 登录没有成功：\n${msg}\n\n请截图发给开发者，或先用邮箱登录。`), 300);
   } else if (fromOAuth) {
     setTimeout(() => toast('正在完成 Google 登录…'), 100);
     setTimeout(() => { if (!cloud.user) { cleanUrl(); alert('Google 登录没有完成，请重试。如果一直不行，请先用邮箱登录。'); } }, 8000);
