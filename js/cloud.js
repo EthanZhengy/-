@@ -13,7 +13,8 @@ const accountLabel = () => (cloud.user ? cloud.user.email || cloud.user.phone ||
 function cloudInit() {
   if (!cloudEnabled()) return;
   cloud.client = window.supabase.createClient(CLOUD_CONFIG.url, CLOUD_CONFIG.anonKey, {
-    auth: { persistSession: true, autoRefreshToken: true, storageKey: 'ianz-auth' },
+    // implicit flow: the Google redirect brings the session back in the URL, picked up on load
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit', storageKey: 'ianz-auth' },
   });
   cloud.client.auth.onAuthStateChange((event, session) => {
     const prev = cloud.user && cloud.user.id;
@@ -21,9 +22,10 @@ function cloudInit() {
     // Supabase advises against awaiting its own calls inside this callback
     if (cloud.user && cloud.user.id !== prev) setTimeout(cloudPull, 0);
     if (!cloud.user) cloud.status = 'off';
+    if (cloud.user && sheetCtx && sheetCtx.type === 'login') closeSheet();
     if ((cloud.user && cloud.user.id) !== prev) render(); else cloudRefreshUi();
     // Accounts created with a one-time code must set a password once (asked again each launch until done)
-    if (cloud.user && !hasPassword() && !cloud.pwPrompted) { cloud.pwPrompted = true; setTimeout(() => openPasswordSheet(true), 600); }
+    if (cloud.user && needsPassword() && !cloud.pwPrompted) { cloud.pwPrompted = true; setTimeout(() => openPasswordSheet(true), 600); }
   });
   window.addEventListener('online', () => { if (cloud.user && state.meta.syncedAt < state.meta.updatedAt) cloudPush(); });
 }
@@ -125,6 +127,18 @@ async function cloudDeleteData() {
 /* ---------- UI ---------- */
 
 const hasPassword = () => !!(cloud.user && cloud.user.user_metadata && cloud.user.user_metadata.has_password);
+const signInProvider = () => (cloud.user && cloud.user.app_metadata && cloud.user.app_metadata.provider) || 'email';
+// Only code-based accounts need a password; Google accounts sign in with Google
+const needsPassword = () => !!cloud.user && ['email', 'phone'].includes(signInProvider()) && !hasPassword();
+const GOOGLE_LOGO = '<svg class="g-logo" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.2 0-11.5-4.1-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>';
+
+async function googleLogin() {
+  const { error } = await cloud.client.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: 'select_account' } },
+  });
+  if (error) toast(`Google 登录失败：${error.message}`);
+}
 
 function accountCard() {
   if (!cloudEnabled()) return '';
@@ -136,8 +150,9 @@ function accountCard() {
   const st = syncText();
   return `<div class="card account"><div class="row between"><h2>云端账号</h2><span class="sync ${cloud.status}">${esc(st)}</span></div>
     <div class="kv"><span>账号</span><b>${esc(accountLabel())}</b></div>
-    <div class="kv"><span>登录密码</span><b>${hasPassword() ? '已设置' : '<span class="warn-text">未设置</span>'}</b></div>
-    <button class="btn block ${hasPassword() ? 'ghost' : ''}" data-act="set-password">${hasPassword() ? '修改密码' : '设置登录密码'}</button>
+    <div class="kv"><span>登录方式</span><b>${signInProvider() === 'google' ? 'Google 账号' : signInProvider() === 'phone' ? '手机号' : '邮箱'}</b></div>
+    ${signInProvider() === 'google' ? '' : `<div class="kv"><span>登录密码</span><b>${hasPassword() ? '已设置' : '<span class="warn-text">未设置</span>'}</b></div>
+    <button class="btn block ${hasPassword() ? 'ghost' : ''}" data-act="set-password">${hasPassword() ? '修改密码' : '设置登录密码'}</button>`}
     <div class="row wrap" style="margin-top:12px"><button class="btn small ghost" data-act="sync-now">立即同步</button>
       <button class="btn small ghost" data-act="logout">退出登录</button>
       <button class="btn small danger" data-act="delete-cloud">删除云端数据</button></div></div>`;
@@ -162,6 +177,8 @@ function openLoginSheet() {
       <button class="btn block" data-act="password-login">登录</button>
       <p class="muted">还没有账号或忘记密码？<button class="link" data-login-method="code">用验证码登录</button>，登录后可以重新设置密码。</p>`;
   openSheet('登录 / 注册', `
+    ${CLOUD_CONFIG.google ? `<button class="btn block google" data-act="google-login">${GOOGLE_LOGO}使用 Google 账号登录</button>
+      <div class="or"><span>或使用邮箱</span></div>` : ''}
     <div class="seg">${[['code', '验证码登录'], ['password', '密码登录']].map(([k, l]) => `<button data-login-method="${k}" class="${login.method === k ? 'on' : ''}">${l}</button>`).join('')}</div>
     ${CLOUD_CONFIG.phone ? `<div class="utabs left">${[['email', '邮箱'], ['phone', '手机号']].map(([k, l]) => `<button data-login-mode="${k}" class="${login.mode === k ? 'on' : ''}">${l}</button>`).join('')}</div>` : ''}
     ${body}`, { type: 'login', reopen: openLoginSheet });
@@ -265,6 +282,7 @@ function bindCloud() {
       else if (b.dataset.act === 'send-code') sendCode();
       else if (b.dataset.act === 'verify-code') verifyCode();
       else if (b.dataset.act === 'password-login') passwordLogin();
+      else if (b.dataset.act === 'google-login') googleLogin();
     } else if (sheetCtx.type === 'password') {
       if (b.dataset.act === 'save-password') savePassword();
       else if (b.dataset.act === 'skip-password') { closeSheet(); toast('登录成功，正在同步数据'); }

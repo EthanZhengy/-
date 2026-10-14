@@ -31,7 +31,16 @@ $('[data-fab]').addEventListener('click', () => {
 
 bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings(); bindMe();
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+    reg.update();
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update(); });
+  }).catch(() => {});
+  // A new version took over: reload once so the page runs the new code
+  let reloaded = false;
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
+}
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !wiz) { scheduleReminders(); render(); } });
 cloudInit();
 render();

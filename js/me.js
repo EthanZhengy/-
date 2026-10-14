@@ -177,7 +177,7 @@ function renderMe() {
     <div class="menu">${row('body', `${p.height}cm · ${GOALS[p.goal].label}`)}${row('nutrition')}${row('training')}${row('rm')}</div>
     <div class="menu">${row('reminders', state.reminders.enabled ? '已开启' : '')}${row('data')}${row('install')}</div>
     ${cloud.user ? `<div class="menu">${row('account')}<button class="menu-row danger" data-act="logout"><span class="mi">${ICONS.logout}</span><span class="grow">退出登录</span></button></div>` : ''}
-    <p class="muted center pad">Ianz Fitness · 5/3/1 力量训练</p>`;
+    <p class="muted center pad">Ianz Fitness · 版本 ${APP_VERSION}</p>`;
 }
 
 function bindMe() {

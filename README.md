@@ -31,6 +31,12 @@
 
 登录方式：第一次用邮箱验证码登录（自动注册），之后会要求设置一个登录密码（至少 12 位，包含字母、数字和特殊字符），以后可以选「密码登录」或「验证码登录」。忘记密码时用验证码登录，再到「我的 → 账号与同步」重新设置。
 
+Google 一键登录：
+1. [Google Cloud Console](https://console.cloud.google.com/) 新建项目 → **APIs & Services → OAuth consent screen**，选 External，填写 App 名称 Ianz Fitness 和邮箱，发布（Publish app）
+2. **Credentials → Create credentials → OAuth client ID**，类型选 **Web application**；**Authorized redirect URIs** 填 `https://<你的项目>.supabase.co/auth/v1/callback`
+3. 把生成的 Client ID 和 Client secret 填到 Supabase **Authentication → Sign In / Providers → Google**，打开开关并保存
+4. Supabase **Authentication → URL Configuration**：Site URL 填 App 网址；Redirect URLs 添加 `https://ethanzhengy.github.io/**`
+
 同步规则：每次修改后自动上传，打开 App 时拉取最新数据，以最后修改的一份为准。如果一台手机上已经有数据、而账号在云端也有数据，会询问保留哪一份。退出登录会清除这台手机上的数据（云端保留）。
 
 ## 第一次打开：问卷

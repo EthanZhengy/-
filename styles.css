@@ -400,3 +400,7 @@ svg.viz.cal { margin: 8px auto; }
 .pw-rules li.ok { color: var(--r-w); font-weight: 600; }
 .warn-text { color: var(--warn); }
 body.sheet-open .toast { bottom: auto; top: calc(16px + env(safe-area-inset-top)); }
+.btn.google { background: var(--card); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); margin-top: 4px; gap: 10px; }
+.g-logo { width: 20px; height: 20px; }
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 16px 0 10px; }
+.or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
