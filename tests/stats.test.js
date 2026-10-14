@@ -33,7 +33,7 @@ assert.ok(wk[0].offlineVolume > 0 && wk[3].appVolume > 0);
 
 // AMRAP reps produce an e1RM point
 st.logs['2026-09-22'] = { session: 'deadlift', done: true, sets: {}, amrap: { 'deadlift:main:2': 6 } };
-const hist = S.history(st);
+const hist = S.trainingHistory(st);
 const pts = S.e1rmSeries(hist, 'deadlift');
 assert.strictEqual(pts.length, 1);
 assert.strictEqual(pts[0].value, Math.round(E.epley(122.5, 6) * 2) / 2);

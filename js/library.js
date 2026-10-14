@@ -19,7 +19,7 @@ function itemState(it) {
 }
 
 function renderLibrary() {
-  const counts = exerciseCounts(history(state));
+  const counts = exerciseCounts(trainingHistory(state));
   const all = libraryItems();
   const q = lib.q.trim();
   let items = q ? all.filter((it) => it.name.includes(q)) : all.filter((it) => it.cats.includes(lib.cat));
@@ -59,7 +59,7 @@ function openExercise(id) {
   const it = libraryItems().find((x) => x.id === id);
   if (!it) return;
   const st = itemState(it);
-  const n = exerciseCounts(history(state))[id] || 0;
+  const n = exerciseCounts(trainingHistory(state))[id] || 0;
   const eqNames = (it.eq || []).map((t) => t.split('|').map((x) => EQUIPMENT[x] || x).join(' 或 '));
   const cats = it.cats.map((c) => LIB_CATS.find(([k]) => k === c)[1]);
   const warn = [st.missing && '你的器械里缺少这个动作需要的器械', st.bad.length && `可能加重你的${st.bad.map((x) => INJURIES[x]).join('、')}不适`].filter(Boolean);

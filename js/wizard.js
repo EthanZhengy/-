@@ -43,7 +43,8 @@ function renderWizard() {
         ${cloudEnabled() && !cloud.user ? '<div class="card account"><b>已经有账号？</b><p class="muted">登录后自动恢复你的计划和训练记录。</p><button class="btn ghost block" data-act="login">登录</button></div>' : ''}`;
       break;
     case 1:
-      body = `<h2>基础信息</h2><p class="muted">用于计算你的热量和营养需求。</p>
+      body = `${wiz.greet !== undefined ? `<h2>你好${wiz.greet ? `，${esc(wiz.greet)}` : ''} 👋</h2>
+        <p>欢迎加入 Ianz Fitness！先花 2 分钟完善你的信息，会自动保存到你的账号，下次登录直接进入训练。</p><h3>基础信息</h3>` : '<h2>基础信息</h2>'}<p class="muted">用于计算你的热量和营养需求。</p>
         <label>怎么称呼你（可选）</label><input data-p="name" value="${esc(p.name)}" placeholder="昵称">
         <div class="grid2">
           <div><label>性别</label><select data-p="sex"><option value="male" ${sel('male', p.sex)}>男</option><option value="female" ${sel('female', p.sex)}>女</option></select></div>

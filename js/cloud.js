@@ -12,6 +12,18 @@ const accountLabel = () => (cloud.user ? cloud.user.email || cloud.user.phone ||
 
 function cloudInit() {
   if (!cloudEnabled()) return;
+  // Coming back from Google: the result (session or error) is in the URL
+  const params = new URLSearchParams(`${location.hash.replace(/^#/, '')}&${location.search.replace(/^\?/, '')}`);
+  const urlError = params.get('error_description') || params.get('error');
+  const fromOAuth = params.has('access_token') || params.has('code');
+  const cleanUrl = () => window.history.replaceState(null, '', location.pathname);
+  if (urlError) {
+    cleanUrl();
+    setTimeout(() => alert(`Google 登录没有成功：\n${urlError.replace(/\+/g, ' ')}\n\n请截图发给开发者，或先用邮箱登录。`), 300);
+  } else if (fromOAuth) {
+    setTimeout(() => toast('正在完成 Google 登录…'), 100);
+    setTimeout(() => { if (!cloud.user) { cleanUrl(); alert('Google 登录没有完成，请重试。如果一直不行，请先用邮箱登录。'); } }, 8000);
+  }
   cloud.client = window.supabase.createClient(CLOUD_CONFIG.url, CLOUD_CONFIG.anonKey, {
     // implicit flow: the Google redirect brings the session back in the URL, picked up on load
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit', storageKey: 'ianz-auth' },
@@ -19,6 +31,7 @@ function cloudInit() {
   cloud.client.auth.onAuthStateChange((event, session) => {
     const prev = cloud.user && cloud.user.id;
     cloud.user = session ? session.user : null;
+    if (cloud.user && /access_token|[?&]code=/.test(location.href)) window.history.replaceState(null, '', location.pathname);
     // Supabase advises against awaiting its own calls inside this callback
     if (cloud.user && cloud.user.id !== prev) setTimeout(cloudPull, 0);
     if (!cloud.user) cloud.status = 'off';
@@ -61,6 +74,21 @@ function applyRemote(remote) {
 }
 
 async function cloudPull() {
+  await reconcile();
+  welcomeIfNew();
+}
+/** First sign-in with nothing set up yet: greet and go straight to the questionnaire (returning users are already home). */
+function welcomeIfNew() {
+  if (!cloud.user || state.onboarded) return;
+  if (!wiz) startWizard(false);
+  const meta = cloud.user.user_metadata || {};
+  const name = (meta.full_name || meta.name || '').trim();
+  if (name && !wiz.draft.profile.name) wiz.draft.profile.name = name;
+  wiz.greet = name || wiz.draft.profile.name || '';
+  if (wiz.step === 0) wiz.step = 1;
+  render();
+}
+async function reconcile() {
   if (!cloud.user) return;
   cloud.status = 'syncing'; cloudRefreshUi();
   const { data, error } = await cloud.client.from('user_data').select('data, updated_at').eq('user_id', cloud.user.id).maybeSingle();

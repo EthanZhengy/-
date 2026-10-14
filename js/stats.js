@@ -49,7 +49,7 @@ function summarizeSession(st, date, sid, log) {
 }
 
 /** Every completed session, oldest first. */
-function history(st) {
+function trainingHistory(st) {
   return Object.keys(st.logs).sort().map((k) => {
     const log = st.logs[k];
     if (!log.done || !SESSIONS[log.session]) return null;
@@ -102,7 +102,7 @@ function unmarkOffline(st, weekAbs, sid) {
 }
 
 /** Per-week summary from week 0 up to the week containing `today`. */
-function weekly(st, today, hist = history(st)) {
+function weekly(st, today, hist = trainingHistory(st)) {
   const cur = position(st, today);
   if (!cur) return [];
   const weeks = [];
@@ -168,5 +168,5 @@ function personalRecords(st, hist) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { summarizeSession, history, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords, exerciseCounts };
+  module.exports = { summarizeSession, trainingHistory, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords, exerciseCounts };
 }

@@ -160,7 +160,7 @@ function renderMe() {
   const p = state.profile;
   const today = new Date();
   const pos = position(state, today);
-  const n = history(state).length;
+  const n = trainingHistory(state).length;
   const row = (k, extra = '') => `<button class="menu-row" data-me-sub="${k}"><span class="mi">${ICONS[ME_PAGES[k][1]]}</span><span class="grow">${ME_PAGES[k][0]}</span>${extra ? `<span class="muted">${extra}</span>` : ''}${ICONS.chevron}</button>`;
   let banner = '';
   if (cloudEnabled() && !cloud.user) {

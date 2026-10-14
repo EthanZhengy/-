@@ -6,7 +6,7 @@ let histTab = 'log';
 
 function renderHistory() {
   const today = new Date();
-  const hist = history(state);
+  const hist = trainingHistory(state);
   const weeks = weekly(state, today, hist);
   const pos = position(state, today);
   if (!pos || !hist.length && !weeks.some((w) => w.app + w.offline)) {
