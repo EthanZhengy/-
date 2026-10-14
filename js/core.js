@@ -24,6 +24,7 @@ function defaultState() {
     reminders: { enabled: false, morning: '07:30', meals: false },
     // updatedAt: last local change; syncedAt: last successful cloud upload; owner: account the data belongs to
     meta: { updatedAt: 0, syncedAt: 0, owner: null },
+    wizStep: 0, // questionnaire progress before the plan is set up
   };
 }
 /** Fill in fields added in later versions so older saved data keeps working. */
@@ -175,6 +176,16 @@ const ICONS = {
   plus: svgI('<path d="M12 5v14M5 12h14"/>', false),
   back: svgI('<path d="M15 5l-7 7 7 7"/>', false),
   close: svgI('<path d="M6 6l12 12M18 6 6 18"/>', false),
+  chevron: svgI('<path d="M9 5l7 7-7 7"/>', false),
+  bell: svgI('<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2H4.5z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>', false),
+  calc: svgI('<rect x="5" y="2.5" width="14" height="19" rx="3"/><rect x="8" y="5.5" width="8" height="4" rx="1"/><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.5h.01M12 16.5h.01M15.5 16.5h.01"/>', false),
+  body: svgI('<circle cx="12" cy="4.5" r="2.2"/><path d="M5 8.5h14M12 8.5v5.5M9 21l3-7 3 7"/>', false),
+  food: svgI('<path d="M4 12h16a8 8 0 0 1-16 0z"/><path d="M8 8c0-2 1-3 1-5M12 8c0-2 1-3 1-5M16 8c0-2 1-3 1-5"/>', false),
+  plan: svgI('<rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 2.5v3M16 2.5v3M4 9.5h16M8 13.5h3M8 17h6"/>', false),
+  data: svgI('<path d="M12 3v12M7.5 10.5 12 15l4.5-4.5"/><path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/>', false),
+  phone: svgI('<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>', false),
+  cloud: svgI('<path d="M7 18.5a4.5 4.5 0 0 1-.5-9A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 10z"/>', false),
+  logout: svgI('<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10"/>', false),
   breakfast: svgI('<path d="M6 10.2A3.6 3.6 0 0 1 7 3.5h10a3.6 3.6 0 0 1 1 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19z"/><path d="M9.5 12.5h5"/>', false),
   lunch: svgI('<circle cx="14.5" cy="12" r="6.5"/><path d="M4 3.5v6m2.5-6v6M3.5 9.5h3.5M5.2 9.5v11"/>', false),
   dinner: svgI('<path d="M3 18.5h18M5 18.5a7 7 0 0 1 14 0M12 9.5V7.5m-2.2 0h4.4"/>', false),

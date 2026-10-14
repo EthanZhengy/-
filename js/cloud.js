@@ -21,13 +21,22 @@ function cloudInit() {
     // Supabase advises against awaiting its own calls inside this callback
     if (cloud.user && cloud.user.id !== prev) setTimeout(cloudPull, 0);
     if (!cloud.user) cloud.status = 'off';
-    cloudRefreshUi();
+    if ((cloud.user && cloud.user.id) !== prev) render(); else cloudRefreshUi();
   });
   window.addEventListener('online', () => { if (cloud.user && state.meta.syncedAt < state.meta.updatedAt) cloudPush(); });
 }
 
 function cloudRefreshUi() {
-  if (!wiz && currentView === 'me') render();
+  // In the questionnaire only the status line is refreshed, so typing is never interrupted
+  if (wiz) { const el = $('#wizAccount'); if (el) el.innerHTML = wizAccountHtml(); return; }
+  if (currentView === 'me') render();
+}
+function syncText() {
+  return { syncing: '同步中…', synced: `已同步${state.meta.syncedAt ? ` · ${new Date(state.meta.syncedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` : ''}`, error: cloud.error, off: '' }[cloud.status] || '';
+}
+function wizAccountHtml() {
+  if (!cloud.user) return '';
+  return `<div class="acct-line"><span class="ok">✓ 已登录</span> ${esc(accountLabel())}<span class="muted"> · 填写的内容会自动保存到账号${cloud.status === 'syncing' ? '（保存中…）' : ''}</span></div>`;
 }
 function cloudFail(error) {
   cloud.status = 'error';
@@ -57,7 +66,10 @@ async function cloudPull() {
   const remoteT = (remote.meta && remote.meta.updatedAt) || Date.parse(data.updated_at) || 0;
   const localT = state.meta.updatedAt || 0;
   const mine = state.meta.owner === cloud.user.id;
-  if (!state.onboarded) return applyRemote(remote);
+  if (!state.onboarded) {
+    // Not set up on this phone yet: take the account's data (finished plan or questionnaire progress)
+    return remote.onboarded || remoteT >= localT ? applyRemote(remote) : cloudPush();
+  }
   if (mine) return remoteT > localT ? applyRemote(remote) : localT > remoteT ? cloudPush() : (cloud.status = 'synced', cloudRefreshUi());
   // This phone has data that was never linked to this account
   const when = new Date(remoteT).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -68,7 +80,7 @@ async function cloudPull() {
 async function cloudPush() {
   clearTimeout(cloud.timer);
   if (!cloud.user) return;
-  if (!state.onboarded) { cloud.status = 'synced'; return cloudRefreshUi(); }
+  if (!state.onboarded && !state.wizStep) { cloud.status = 'synced'; return cloudRefreshUi(); }
   state.meta.owner = cloud.user.id;
   cloud.status = 'syncing'; cloudRefreshUi();
   const { error } = await cloud.client.from('user_data').upsert({
@@ -117,7 +129,7 @@ function accountCard() {
       <p class="muted">用邮箱${CLOUD_CONFIG.phone ? '或手机号' : ''}验证码登录，数据自动保存到云端，换手机、删了 App 也不会丢。</p>
       <button class="btn block" data-act="login">验证码登录</button></div>`;
   }
-  const st = { syncing: '同步中…', synced: `已同步${state.meta.syncedAt ? ` · ${new Date(state.meta.syncedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` : ''}`, error: cloud.error, off: '' }[cloud.status];
+  const st = syncText();
   return `<div class="card account"><div class="row between"><h2>云端账号</h2><span class="sync ${cloud.status}">${esc(st)}</span></div>
     <div class="kv"><span>账号</span><b>${esc(accountLabel())}</b></div>
     <div class="row wrap"><button class="btn small ghost" data-act="sync-now">立即同步</button>

@@ -8,7 +8,8 @@ function startWizard(fromSettings) {
   const draft = clone(state);
   const inputs = {};
   LIFTS.forEach((l) => (inputs[l] = { w: draft.lifts[l].oneRM || '', reps: 1 }));
-  wiz = { step: fromSettings ? 1 : 0, draft, inputs, startOpt: state.onboarded ? 'keep' : 'this', startWeek: 1, doneNow: [] };
+  const resume = !state.onboarded && state.wizStep > 0 ? Math.min(state.wizStep, STEPS.length - 1) : 0;
+  wiz = { step: fromSettings ? 1 : resume, draft, inputs, startOpt: state.onboarded ? 'keep' : 'this', startWeek: 1, doneNow: [] };
   render();
 }
 
@@ -149,6 +150,7 @@ function renderWizard() {
   const last = wiz.step === STEPS.length - 1;
   $('#view-wizard').innerHTML = `
     <div class="steps">${STEPS.map((s, i) => `<span class="${i <= wiz.step ? 'on' : ''}"></span>`).join('')}</div>
+    <div id="wizAccount">${wizAccountHtml()}</div>
     <div class="wiz-body">${body}</div>
     <div class="wiz-nav">
       ${wiz.step > 0 ? '<button class="btn ghost" data-wiz="back">上一步</button>' : (state.onboarded ? '<button class="btn ghost" data-wiz="cancel">取消</button>' : '<span></span>')}
@@ -190,6 +192,7 @@ function bindWizard() {
       if (wiz.step === 2) fixVariants(d);
       if (wiz.step === STEPS.length - 1) return finishWizard();
       wiz.step++;
+      persistWizard();
       window.scrollTo(0, 0);
     } else if (ds.goal) d.profile.goal = ds.goal;
     else if (ds.injury) toggle(d.injuries, ds.injury);
@@ -250,12 +253,22 @@ function bindWizard() {
 }
 function toggle(arr, v) { const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); }
 
+/** Keep questionnaire answers as they are entered (and sync them when signed in), so they never need re-entering. */
+const WIZ_FIELDS = ['profile', 'lifts', 'plateInc', 'equipment', 'injuries', 'favorites', 'excluded', 'customEx', 'schedule', 'trainTime'];
+function persistWizard() {
+  if (state.onboarded) return; // editing an existing plan only applies on 完成
+  WIZ_FIELDS.forEach((k) => (state[k] = clone(wiz.draft[k])));
+  state.wizStep = wiz.step;
+  save();
+}
+
 function finishWizard() {
   const d = wiz.draft;
   const newStart = computeStart();
   if (newStart !== state.startDate) d.tests = {};
   d.startDate = newStart;
   d.onboarded = true;
+  d.wizStep = 0;
   d.logs = state.logs;
   state = d;
   // Weeks already trained before using the app → mark as completed outside the app

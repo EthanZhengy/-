@@ -18,6 +18,7 @@ function render() {
 $('.tabbar').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-view]');
   if (!b) return;
+  if (b.dataset.view === 'me' || b.dataset.view !== currentView) meSub = null;
   currentView = b.dataset.view;
   render(); window.scrollTo(0, 0);
 });
@@ -28,7 +29,7 @@ $('[data-fab]').addEventListener('click', () => {
   currentView = 'workout'; render(); window.scrollTo(0, 0);
 });
 
-bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings();
+bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings(); bindMe();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !wiz) { scheduleReminders(); render(); } });
