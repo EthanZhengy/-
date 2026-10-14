@@ -17,22 +17,8 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    // Personal-use signing key kept in the repo so every build has the same signature
-    // and installs over the previous one (keeping your data). Not meant for store publishing.
-    signingConfigs {
-        personal {
-            storeFile file('trainer531.keystore')
-            storePassword 'trainer531'
-            keyAlias 'trainer531'
-            keyPassword 'trainer531'
-        }
-    }
     buildTypes {
-        debug {
-            signingConfig signingConfigs.personal
-        }
         release {
-            signingConfig signingConfigs.personal
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
