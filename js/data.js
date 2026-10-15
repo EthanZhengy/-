@@ -16,10 +16,14 @@ const SESSIONS = {
   deadlift: { main: 'deadlift', secondary: 'squat', slot: 'core', acc: 'lower' },
   bench: { main: 'bench', secondary: 'press', slot: 'pull', acc: 'upper' },
   squat: { main: 'squat', secondary: 'deadlift', slot: 'core', acc: 'lower' },
+  // Mike 卧推增力计划
+  mike1: { main: 'bench', program: 'mike' },
+  mike2: { main: 'bench', program: 'mike' },
+  mikeTest: { main: 'bench', program: 'mike' },
 };
 const SESSION_ORDER = ['press', 'deadlift', 'bench', 'squat'];
 const TEST_ORDER = ['deadlift', 'bench', 'squat', 'press']; // week 12; press test is optional
-const SESSION_LABEL = { press: '推举日', deadlift: '硬拉日', bench: '卧推日', squat: '深蹲日' };
+const SESSION_LABEL = { press: '推举日', deadlift: '硬拉日', bench: '卧推日', squat: '深蹲日', mike1: '第一推（胸）', mike2: '第二推（手臂）', mikeTest: '卧推极限测试' };
 
 /**
  * Week definitions transcribed from the "3个月力量训练挑战计划".
@@ -52,6 +56,58 @@ const WEEKS = [
     sec: null, pc: 0, acc: 0, note: '完成规定次数即可，不做任何辅助训练，给第 12 周测极限做缓冲。' },
   { name: '极限测试周', test: true },
 ];
+
+/* ---------- Training programs ---------- */
+const PROGRAMS = {
+  '531': {
+    id: '531', name: '5/3/1 三个月力量挑战', short: '5/3/1', weeks: 12, days: 4,
+    desc: '推举、硬拉、卧推、深蹲四个主项，一周四练，12 周周期，第 12 周测极限。适合全面提升力量举三项。',
+    defaultSchedule: [0, 1, 3, 4],
+  },
+  mike: {
+    id: 'mike', name: 'Mike 卧推增力计划', short: '卧推增力', weeks: 16, days: 2,
+    desc: '专攻卧推的 16 周计划：一周两推，4 周容量储备 → 11 周力量储备 → 第 16 周测极限。其他部位照常训练。',
+    defaultSchedule: [0, 3],
+  },
+};
+
+/*
+ * Mike 卧推增力计划 (16 weeks), transcribed from the plan spreadsheets.
+ * b: Day1 bench [sets, reps, % of bench 1RM, RPE]. cg: Day2 close-grip % of close-grip 1RM (+ RPE).
+ * Phase 1 Day2 does 2×8 at cg% then 2×8 at −10%. Phase 2 Day2 mirrors Day1 sets / reps.
+ * pause: seconds for the pause-bench option (1s → 6 reps, 2s → 4 reps, 3s → 2 reps).
+ */
+const MIKE_WEEKS = [
+  { phase: 1, b: [4, 8, 65, '7–8'], cg: [65, '6'] },
+  { phase: 1, b: [4, 7, 68, '7–8'], cg: [70, '7'] },
+  { phase: 1, b: [4, 6, 72, '7.5–8.5'], cg: [72.5, '8'] },
+  { phase: 1, b: [4, 6, 77, '8.5–9.5'], cg: [75, '9'] },
+  { phase: 2, b: [3, 5, 70, '5.5'], cg: [70, '5.5'], pause: 1 },
+  { phase: 2, b: [3, 5, 75, '6.5'], cg: [75, '6.5'], pause: 1 },
+  { phase: 2, b: [3, 5, 80, '7.5'], cg: [80, '7.5'], pause: 1 },
+  { phase: 2, b: [3, 4, 85, '8.5'], cg: [85, '8.5'], pause: 1 },
+  { phase: 2, b: [3, 3, 88, '9'], cg: [88, '9'], pause: 2 },
+  { phase: 2, b: [2, 5, 77, '6'], cg: [77, '6'], pause: 2 },
+  { phase: 2, b: [2, 5, 82, '8'], cg: [82, '8'], pause: 2 },
+  { phase: 2, b: [2, 3, 88, '7.5'], cg: [88, '7.5'], pause: 2 },
+  { phase: 2, b: [2, 2, 90, '8.5'], cg: [90, '8.5'], pause: 3 },
+  { phase: 2, b: [3, 1, 95, '9'], cg: [95, '9'], pause: 3 },
+  { phase: 2, b: [5, 5, 70, '7'], cg: [60, '7'], pause: 3, taper: true },
+  { phase: 3, test: true },
+].map((w, i) => ({
+  ...w,
+  name: w.test ? '极限测试周' : w.phase === 1 ? `容量储备期 · 第 ${i + 1} 周` : `力量储备期 · 第 ${i - 3} 周${w.taper ? '（测试前减量）' : ''}`,
+}));
+const MIKE_WARMUP = '热身：胸椎灵活性 + 泡沫轴放松紧张肌肉 + 单臂哑铃支撑 + 2 组高次数小重量高位下拉 / 引体';
+
+/* 力量储备期 Day1「五选一」: pick the one that targets your weak point; 3×6 at 80% of the day's bench weight. */
+const MIKE_VARIANTS = {
+  spoto: { name: 'Spoto 卧推', weak: '底部发力弱', cue: '杠铃下放到离胸口 2–3 厘米处停住、不触胸，保持全身紧张再推起。' },
+  pause: { name: '暂停卧推', weak: '离胸启动慢', cue: '杠铃触胸后完全静止，按计划暂停 1–3 秒再推起，消除反弹。' },
+  band: { name: '弹力带卧推', weak: '锁定无力', cue: '杠铃两端挂弹力带，越往上阻力越大，练到完全锁定。' },
+  high: { name: '高位卧推', weak: '上半程 / 锁定无力', cue: '只做上半程（用保护杆或垫板限制下放深度），强化锁定段。' },
+  cg: { name: '窄推', weak: '三头弱、锁定不足', cue: '握距约与肩同宽，肘部贴近身体，三头发力推到锁定。' },
+};
 
 /* Equipment tokens. A requirement "a|b" means either one is enough. */
 const EQUIPMENT = {
@@ -203,5 +259,5 @@ const DAY_FIT = {
 
 if (typeof module !== 'undefined') {
   module.exports = { LIFTS, LIFT_NAMES, TM_INC, LOWER, SESSIONS, SESSION_ORDER, TEST_ORDER, SESSION_LABEL,
-    WEEKS, EQUIPMENT, INJURIES, VARIANTS, EXERCISES, SLOT_NAMES, DAY_FIT, LIB_CATS, MUSCLE_CAT, LIFT_CAT, EQ_FILTERS, primaryEq, FOODS };
+    WEEKS, EQUIPMENT, INJURIES, VARIANTS, EXERCISES, SLOT_NAMES, DAY_FIT, LIB_CATS, MUSCLE_CAT, LIFT_CAT, EQ_FILTERS, primaryEq, FOODS, PROGRAMS, MIKE_WEEKS, MIKE_WARMUP, MIKE_VARIANTS };
 }

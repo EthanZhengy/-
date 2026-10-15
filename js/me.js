@@ -73,9 +73,14 @@ function installHtml() {
     <div class="card"><h2>Android</h2><p class="muted">用 Chrome 打开 → 右上角菜单 →「安装应用」或「添加到主屏幕」。</p></div>`;
 }
 function trainingSettingsHtml() {
+  const maxes = isMike()
+    ? `<div class="kv"><span>卧推 / 窄推 1RM</span><b>${fmtW(state.mike.bench1RM)} / ${fmtW(roundTo(mikeMax(state, 0, 'cg'), 0.5))}kg</b></div>
+      <div class="kv"><span>五选一辅助卧推</span><b>${esc((MIKE_VARIANTS[state.mike.variant] || MIKE_VARIANTS.pause).name)}</b></div>`
+    : `<div class="kv"><span>主项动作</span><b>${LIFTS.map((l) => variantOf(state, l).name.replace(/（.*）/, '')).join('、')}</b></div>
+      <div class="kv"><span>最大重量 1RM</span><b>${LIFTS.map((l) => `${LIFT_NAMES[l]} ${fmtW(state.lifts[l].oneRM)}`).join(' · ')}</b></div>`;
   return `<div class="card">
-      <div class="kv"><span>主项动作</span><b>${LIFTS.map((l) => variantOf(state, l).name.replace(/（.*）/, '')).join('、')}</b></div>
-      <div class="kv"><span>最大重量 1RM</span><b>${LIFTS.map((l) => `${LIFT_NAMES[l]} ${fmtW(state.lifts[l].oneRM)}`).join(' · ')}</b></div>
+      <div class="kv"><span>训练计划</span><b>${esc(progOf().name)}</b></div>
+      ${maxes}
       <div class="kv"><span>训练日</span><b>${state.schedule.map((d) => WEEKDAYS[d]).join('、')} ${esc(state.trainTime)}</b></div>
       <div class="kv"><span>伤病</span><b>${state.injuries.map((i) => INJURIES[i]).join('、') || '无'}</b></div>
       <div class="kv"><span>器械</span><b>${state.equipment.length} 种</b></div>
@@ -177,7 +182,7 @@ function renderMe() {
     <div class="menu">${row('body', `${p.height}cm · ${GOALS[p.goal].label}`)}${row('nutrition')}${row('training')}${row('rm')}</div>
     <div class="menu">${row('reminders', state.reminders.enabled ? '已开启' : '')}${row('data')}${row('install')}</div>
     ${cloud.user ? `<div class="menu">${row('account')}<button class="menu-row danger" data-act="logout"><span class="mi">${ICONS.logout}</span><span class="grow">退出登录</span></button></div>` : ''}
-    <p class="muted center pad">Ianz Fitness · 版本 ${APP_VERSION} · <a href="privacy.html">隐私政策</a></p>`;
+    <p class="muted center pad">Ianz Fitness · 版本 ${APP_VERSION} · <a href="plans.html">训练计划介绍</a> · <a href="privacy.html">隐私政策</a></p>`;
 }
 
 function bindMe() {

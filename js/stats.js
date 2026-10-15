@@ -13,9 +13,11 @@ function summarizeSession(st, date, sid, log) {
   const s = buildSession(st, date, sid, { readiness: log.readiness, swaps: (log.swaps || {})[sid] || {} });
   if (!s) return null;
   const pos = s.pos;
-  const main = s.blocks[0];
-  const out = { lift: main.lift, variant: variantOf(st, main.lift).name, volume: 0, sets: 0, e1rm: null, top: null, test: null,
-    exIds: [variantOf(st, main.lift).id].concat(s.test ? [] : [variantOf(st, SESSIONS[sid].secondary).id], s.blocks.filter((b) => b.ex).map((b) => b.ex.id)) };
+  const main = s.blocks.find((b) => b.type === 'main') || s.blocks[0];
+  const mike = programOfSession(sid) === 'mike';
+  const secondary = SESSIONS[sid].secondary;
+  const out = { lift: main.lift, variant: mike ? main.title.replace(/^.*· /, '') : variantOf(st, main.lift).name, volume: 0, sets: 0, e1rm: null, top: null, test: null,
+    exIds: (mike ? ['bb_bench'] : [variantOf(st, main.lift).id]).concat(s.test || !secondary ? [] : [variantOf(st, secondary).id], s.blocks.filter((b) => b.ex).map((b) => b.ex.id)) };
   if (s.test) {
     const t = st.tests[pos.cycle] && st.tests[pos.cycle][main.lift];
     if (t) { out.test = t; out.e1rm = { value: t, w: t, reps: 1, src: 'test' }; out.top = { w: t, reps: 1 }; }
@@ -54,10 +56,12 @@ function trainingHistory(st) {
     const log = st.logs[k];
     if (!log.done || !SESSIONS[log.session]) return null;
     const date = parseKey(k);
-    const pos = position(st, date);
+    const program = programOfSession(log.session);
+    const sv = asProgram(st, program); // each workout is read against the program it belongs to
+    const pos = position(sv, date);
     if (!pos) return null;
-    const res = (!log.offline && log.result) || summarizeSession(st, date, log.session, log);
-    return res && { key: k, date, pos, session: log.session, offline: !!log.offline, ...res };
+    const res = (!log.offline && log.result) || summarizeSession(sv, date, log.session, log);
+    return res && { key: k, date, pos, program, session: log.session, offline: !!log.offline, ...res };
   }).filter(Boolean);
 }
 
@@ -69,7 +73,7 @@ function sessionStatus(st, weekAbs, sid, today) {
     const l = st.logs[k];
     if (l && l.done && l.session === sid) return { status: l.offline ? 'offline' : 'app', date: addDays(start, i) };
   }
-  const idx = orderFor((weekAbs % 12) + 1).indexOf(sid);
+  const idx = orderFor((weekAbs % progOf(st).weeks) + 1, st).indexOf(sid);
   const date = addDays(start, st.schedule[idx] ?? idx);
   const weekEnd = addDays(start, 6);
   return { status: dayDiff(weekEnd, today) > 0 ? 'missed' : 'upcoming', date };
@@ -81,7 +85,7 @@ function sessionStatus(st, weekAbs, sid, today) {
  */
 function markOffline(st, weekAbs, sid, today) {
   const start = addDays(parseKey(st.startDate), weekAbs * 7);
-  const idx = orderFor((weekAbs % 12) + 1).indexOf(sid);
+  const idx = orderFor((weekAbs % progOf(st).weeks) + 1, st).indexOf(sid);
   const pref = addDays(start, st.schedule[idx] ?? idx);
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i))
     .filter((d) => dayDiff(d, today) >= 0)
@@ -106,13 +110,15 @@ function weekly(st, today, hist = trainingHistory(st)) {
   const cur = position(st, today);
   if (!cur) return [];
   const weeks = [];
+  const n = progOf(st).weeks;
+  const prog = progOf(st).id;
   for (let w = 0; w <= cur.weekAbs; w++) {
-    const week = (w % 12) + 1;
+    const week = (w % n) + 1;
     const start = addDays(parseKey(st.startDate), w * 7);
-    const hs = hist.filter((h) => h.pos.weekAbs === w);
+    const hs = hist.filter((h) => h.program === prog && h.pos.weekAbs === w);
     weeks.push({
-      weekAbs: w, week, cycle: Math.floor(w / 12), start,
-      required: requiredFor(week),
+      weekAbs: w, week, cycle: Math.floor(w / n), start,
+      required: requiredFor(week, st),
       app: hs.filter((h) => !h.offline).length,
       offline: hs.filter((h) => h.offline).length,
       appVolume: hs.filter((h) => !h.offline).reduce((a, h) => a + h.volume, 0),
@@ -138,11 +144,14 @@ function streak(weeks) {
 /** TM for each week up to the end of the current cycle (step series). */
 function tmSeries(st, lift, today) {
   const cur = position(st, today);
-  const last = cur ? (cur.cycle + 1) * 12 - 1 : 11;
+  const n = progOf(st).weeks;
+  const last = cur ? (cur.cycle + 1) * n - 1 : n - 1;
   return Array.from({ length: last + 1 }, (_, w) => ({
     weekAbs: w, date: addDays(parseKey(st.startDate), w * 7),
-    tm: roundTo(tmFor(st, Math.floor(w / 12), (w % 12) + 1, lift), 0.5),
-  }));
+    // 5/3/1 plots its training max; the Mike plan works straight off the bench 1RM
+    tm: isMike(st) ? (lift === 'bench' ? roundTo(mikeMax(st, Math.floor(w / n), 'bench'), 0.5) : null)
+      : roundTo(tmFor(st, Math.floor(w / n), (w % n) + 1, lift), 0.5),
+  })).filter((p) => p.tm !== null);
 }
 
 function e1rmSeries(hist, lift) {

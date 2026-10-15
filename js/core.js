@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -10,6 +10,9 @@ const HOME_EQUIP = ['barbell', 'rack', 'bench', 'dumbbell', 'pullup', 'band'];
 function defaultState() {
   return {
     onboarded: false,
+    program: '531', // active training program (see PROGRAMS); other programs' start date / schedule / tests live in programs[id]
+    programs: {},
+    mike: { bench1RM: 0, cg1RM: 0, variant: 'pause' },
     profile: { name: '', sex: 'male', age: 25, height: 175, weight: 70, activity: 1.35, goal: 'bulk' },
     lifts: {
       press: { variant: 'ohp', oneRM: 0 }, deadlift: { variant: 'conv_dl', oneRM: 0 },
@@ -32,7 +35,7 @@ function defaultState() {
 function normalizeState(s) {
   const d = defaultState();
   return { ...d, ...s, profile: { ...d.profile, ...s.profile }, lifts: { ...d.lifts, ...s.lifts },
-    reminders: { ...d.reminders, ...s.reminders }, meta: { ...d.meta, ...s.meta } };
+    reminders: { ...d.reminders, ...s.reminders }, meta: { ...d.meta, ...s.meta }, mike: { ...d.mike, ...s.mike } };
 }
 function loadState() {
   try {
@@ -63,7 +66,7 @@ function logFor(key) {
   l.sets = l.sets || {}; l.amrap = l.amrap || {}; l.swaps = l.swaps || {}; l.meals = l.meals || {};
   return l;
 }
-const sessionName = (s, week) => (s === 'rest' ? '休息' : week === 12 ? `${LIFT_NAMES[s]}测试` : SESSION_LABEL[s]);
+const sessionName = (s, week) => (s === 'rest' ? '休息' : LIFT_NAMES[s] && week === 12 ? `${LIFT_NAMES[s]}测试` : SESSION_LABEL[s]);
 const chip = (label, attrs, on, extra = '') => `<button class="chip${on ? ' on' : ''}${extra}" ${attrs}>${label}</button>`;
 function macrosHtml(n) {
   return `<div class="macros">
@@ -152,7 +155,7 @@ function exportIcs() {
     const [h, m] = state.trainTime.split(':');
     const end = fromMin(toMin(state.trainTime) + 90).split(':');
     const n = nutritionFor(state, LOWER[sid] ? 'lower' : 'upper');
-    const title = `${sessionName(sid, pos.week)}（第${pos.week}周 ${WEEKS[pos.week - 1].name}）`;
+    const title = `${sessionName(sid, pos.week)}（第${pos.week}周 ${weekName(pos.week)}）`;
     const body = `${sessionSummary(state, date, sid, 'normal')}\n营养：${n.kcal}千卡 · 蛋白${n.protein}g · 碳水${n.carbs}g · 脂肪${n.fat}g`;
     lines.push('BEGIN:VEVENT', `UID:${ymd}-531@trainer`, `DTSTAMP:${stamp}`, `DTSTART:${ymd}T${h}${m}00`,
       toMin(state.trainTime) + 90 < 1440 ? `DTEND:${ymd}T${end[0]}${end[1]}00` : `DTEND:${ymd}T235900`,

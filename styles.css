@@ -445,3 +445,14 @@ body[data-mode=friends] { background: linear-gradient(180deg, #e9e8fb 0%, #f3eef
 body[data-mode=friends] { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
 .fr-nav button { position: relative; }
 .fr-nav .dot-badge { top: -2px; right: calc(50% - 26px); }
+
+/* ============ Programs ============ */
+.prog-card { display: block; width: 100%; text-align: left; border: 2px solid transparent; background: var(--card); color: var(--text); border-radius: 18px; padding: 14px 16px; margin: 10px 0; cursor: pointer; box-shadow: var(--shadow); }
+.prog-card.on { border-color: var(--primary); }
+.prog-card b { font-size: 17px; }
+.prog-card p { margin: 6px 0 0; font-size: 14px; line-height: 1.5; }
+.pill-btn.big { font-size: 14px; padding: 7px 12px; border-radius: 12px; color: var(--primary); background: var(--primary-soft); font-weight: 700; }
+.var-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.var-opt { border: 2px solid transparent; background: var(--card); color: var(--text); border-radius: 14px; padding: 10px; text-align: left; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+.var-opt.on { border-color: var(--primary); background: var(--primary-soft); }
+.var-opt span { font-size: 12px; color: var(--muted); }

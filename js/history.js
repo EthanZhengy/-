@@ -43,7 +43,7 @@ function renderHistory() {
   const gain = pr.best ? pr.best.value - pr.start : null;
   html += `<div class="card"><h2>力量曲线</h2>
     <div class="chips">${LIFTS.map((l) => chip(LIFT_NAMES[l], `data-lift="${l}"`, statsLift === l)).join('')}</div>
-    <div class="legend"><span><i class="lg ref dashed"></i>训练最大重量 TM</span><span><i class="lg s1 dot"></i>估算 1RM（"+"组）</span><span><i class="lg s1 diamond"></i>测试 1RM</span></div>
+    <div class="legend"><span><i class="lg ref dashed"></i>${isMike() ? '计划 1RM' : '训练最大重量 TM'}</span><span><i class="lg s1 dot"></i>估算 1RM（"+"组）</span><span><i class="lg s1 diamond"></i>测试 1RM</span></div>
     ${lineChart({ series })}
     <div class="kv"><span>起始 1RM</span><b>${fmtW(pr.start)}kg</b></div>
     <div class="kv"><span>最佳估算 1RM</span><b>${pr.best ? `${fmtW(pr.best.value)}kg` : '—'}${gain !== null ? ` <em class="${gain >= 0 ? 'up' : 'down'}">${gain >= 0 ? '+' : ''}${fmtW(gain)}</em>` : ''}</b></div>
@@ -71,12 +71,12 @@ function renderHistory() {
   const cells = [], labels = [];
   for (let w = firstW; w <= pos.weekAbs; w++) {
     const start = addDays(parseKey(state.startDate), w * 7);
-    labels.push((w - firstW) % 3 === 0 ? `W${(w % 12) + 1}` : '');
+    labels.push((w - firstW) % 3 === 0 ? `W${(w % progOf().weeks) + 1}` : '');
     cells.push(Array.from({ length: 7 }, (_, d) => {
       const date = addDays(start, d);
       const l = state.logs[dateKey(date)];
       const label = `${fmtDate(date)} ${WEEKDAYS[weekdayIdx(date)]}`;
-      if (l && l.done && SESSIONS[l.session]) return { cls: l.offline ? 'off' : 'app', tip: `${label} · ${sessionName(l.session, (w % 12) + 1)} · ${l.offline ? 'App 外完成' : 'App 完成'}` };
+      if (l && l.done && SESSIONS[l.session]) return { cls: l.offline ? 'off' : 'app', tip: `${label} · ${sessionName(l.session, (w % progOf().weeks) + 1)} · ${l.offline ? 'App 外完成' : 'App 完成'}` };
       if (dayDiff(today, date) > 0) return { cls: 'future' };
       return { cls: 'none', tip: `${label} · 无训练` };
     }));

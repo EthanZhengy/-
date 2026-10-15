@@ -108,16 +108,15 @@ function homeToday(t) {
       <button class="btn light" data-act="start-now">现在就开始</button></div>`;
   }
   const { pos, log, rec, sid } = t;
-  const W = WEEKS[pos.week - 1];
   const order = orderFor(pos.week);
   const done = doneSessions(state, pos, t.key);
   const doneToday = log.done && log.session === sid;
   const status = (s) => sessionStatus(state, pos.weekAbs, s, t.date).status;
 
   let html = `<div class="card hero">
-    <div class="row between"><span class="tag">第 ${pos.cycle + 1} 轮 · 第 ${pos.week}/12 周</span></div>
-    <h2>${esc(W.name)}</h2>
-    <div class="pills">${order.map((s, i) => { const st = status(s); return `<span class="pill ${st}">${st === 'app' ? '✓ ' : st === 'offline' ? '📝 ' : ''}${sessionName(s, pos.week)}${pos.week === 12 && i === 3 ? '(可选)' : ''}</span>`; }).join('')}</div></div>`;
+    <div class="row between"><span class="tag">${esc(progOf().short)} · 第 ${pos.cycle + 1} 轮 · 第 ${pos.week}/${progOf().weeks} 周</span></div>
+    <h2>${esc(weekName(pos.week))}</h2>
+    <div class="pills">${order.map((s, i) => { const st = status(s); return `<span class="pill ${st}">${st === 'app' ? '✓ ' : st === 'offline' ? '📝 ' : ''}${sessionName(s, pos.week)}${!isMike() && pos.week === 12 && i === 3 ? '(可选)' : ''}</span>`; }).join('')}</div></div>`;
 
   const yesterday = doneOn(state, addDays(t.date, -1));
   let warn = '';
@@ -149,7 +148,7 @@ function homeToday(t) {
   html += `<div class="card session">
     <div class="row between"><h2>${sessionName(sid, pos.week)}</h2>${doneToday ? BADGE.app : `<span class="muted">${doneSets}/${total} 组</span>`}</div>
     ${s.blocks.map((b) => `<div class="srow"><span class="dot${ticks(b.key) >= (b.type === 'main' ? b.rows.length : b.sets) ? ' on' : ''}"></span>
-      <div class="grow"><div>${esc(b.title.replace(/^(主项|第二主项|辅助|拉类动作|腹肌核心|上肢辅助|下肢辅助) · /, ''))}</div>
+      <div class="grow"><div>${esc(b.title.replace(/^(主项|第二主项|辅助|激活|五选一|拉类动作|腹肌核心|上肢辅助|下肢辅助) · /, ''))}</div>
       <div class="muted">${b.type === 'main' ? b.rows.map((r) => `${fmtW(r.w)}×${r.reps}${r.plus ? '+' : ''}`).join(' · ') : `${b.w ? `${fmtW(b.w)}kg · ` : ''}${b.sets} 组 × ${esc(b.reps)}`}</div></div>
       <span class="muted small">${esc(b.title.split(' · ')[0])}</span></div>`).join('')}
     <button class="btn block big" data-act="start">${doneToday ? '查看训练' : doneSets ? '继续训练' : '开始训练'}</button></div>`;
@@ -160,7 +159,7 @@ function homeWeek(t) {
   if (!t.pos) return '<div class="card"><p class="muted">计划还没开始。</p></div>';
   const { pos } = t;
   const rp = remainingPlan(state, t.date, t.sid);
-  let html = `<div class="card"><h2>第 ${pos.week} 周 · ${esc(WEEKS[pos.week - 1].name)}</h2>
+  let html = `<div class="card"><h2>第 ${pos.week} 周 · ${esc(weekName(pos.week))}</h2>
     <p class="muted">${fmtDate(pos.weekStart)} – ${fmtDate(pos.weekEnd)}</p>${weekPreviewHtml(state, pos.weekAbs, false, true)}</div>`;
   if (rp.plan.length || rp.unplaced.length) {
     html += `<div class="card"><h2>接下来</h2>
@@ -262,7 +261,7 @@ function renderWorkout() {
   const s = buildSession(state, t.date, t.sid, { readiness: t.log.readiness, swaps: t.log.swaps[t.sid] || {} });
   const doneToday = t.log.done && t.log.session === t.sid;
   $('#view-workout').innerHTML = `<div class="wk-head"><button class="icon-round" data-act="back" aria-label="返回">${ICONS.back}</button>
-      <div class="grow"><b>${sessionName(t.sid, t.pos.week)}</b><div class="muted">第 ${t.pos.week} 周 · ${esc(WEEKS[t.pos.week - 1].name)} · ${READINESS[t.log.readiness || 'normal'].label}</div></div></div>
+      <div class="grow"><b>${sessionName(t.sid, t.pos.week)}</b><div class="muted">第 ${t.pos.week} 周 · ${esc(weekName(t.pos.week))} · ${READINESS[t.log.readiness || 'normal'].label}</div></div></div>
     ${workoutHtml(s, t.log, t.sid, doneToday)}`;
 }
 
@@ -275,6 +274,7 @@ function workoutHtml(s, log, sid, doneToday) {
     html += `<div class="card block"><div class="row between"><div><div class="muted small">${esc(b.title.split(' · ')[0])}</div><h2>${esc(b.title.split(' · ').slice(1).join(' · '))}</h2></div>
       ${b.ex ? `<button class="btn tiny ghost" data-swap="${b.key}" data-slot="${b.slot}">换一个</button>` : `<span class="muted">${esc(b.sub || '')}</span>`}</div>`;
     if (b.ex && b.ex.cue) html += `<p class="cue">${esc(b.ex.cue)}</p>`;
+    if (b.note) html += `<p class="cue">${esc(b.note)}</p>`;
     if (b.type === 'main') {
       b.rows.forEach((r, i) => {
         const am = log.amrap[`${key(b.key)}:${i}`];

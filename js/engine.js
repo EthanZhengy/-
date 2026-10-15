@@ -41,23 +41,44 @@ function tmFor(st, cycle, week, lift) {
   return baseTM(st, cycle, lift) + TM_INC[lift] * (week >= 9 ? 2 : week >= 5 ? 1 : 0);
 }
 
+/* ---------- programs ---------- */
+// UI code may omit `st`: it then means the app's current state (the active program).
+const cur = (st) => st || (typeof state !== 'undefined' ? state : null);
+const progOf = (st) => PROGRAMS[(cur(st) && cur(st).program) || '531'] || PROGRAMS['531'];
+const isMike = (st) => progOf(st).id === 'mike';
+const programOfSession = (sid) => (String(sid).startsWith('mike') ? 'mike' : '531');
+const isTestWeek = (week, st) => week === progOf(st).weeks;
+function orderFor(week, st) {
+  if (isMike(st)) return isTestWeek(week, st) ? ['mikeTest'] : ['mike1', 'mike2'];
+  return week === 12 ? TEST_ORDER : SESSION_ORDER;
+}
+function requiredFor(week, st) {
+  if (isMike(st)) return isTestWeek(week, st) ? 1 : 2;
+  return week === 12 ? 3 : 4; // press test in week 12 is optional
+}
+const weekName = (week, st) => (isMike(st) ? MIKE_WEEKS : WEEKS)[week - 1].name;
+/** The state as seen by another program (its own start date, schedule and tests), for history across programs. */
+function asProgram(st, prog) {
+  if ((st.program || '531') === prog) return st;
+  return { ...st, ...((st.programs || {})[prog] || {}), program: prog };
+}
+
 /* ---------- program position ---------- */
 function position(st, date) {
   const start = parseKey(st.startDate);
   const diff = dayDiff(start, date);
   if (diff < 0) return null;
   const weekAbs = Math.floor(diff / 7);
+  const n = progOf(st).weeks;
   return {
-    weekAbs, cycle: Math.floor(weekAbs / 12), week: (weekAbs % 12) + 1,
+    weekAbs, cycle: Math.floor(weekAbs / n), week: (weekAbs % n) + 1,
     weekStart: addDays(start, weekAbs * 7), weekEnd: addDays(start, weekAbs * 7 + 6),
   };
 }
-const orderFor = (week) => (week === 12 ? TEST_ORDER : SESSION_ORDER);
-const requiredFor = (week) => (week === 12 ? 3 : 4); // press test in week 12 is optional
 
 function scheduledFor(st, date, week) {
   const i = st.schedule.indexOf(weekdayIdx(date));
-  return i < 0 ? null : orderFor(week)[i] || null;
+  return i < 0 ? null : orderFor(week, st)[i] || null;
 }
 
 /** Sessions marked done in the program week containing `date` (optionally excluding one day). */
@@ -85,17 +106,17 @@ function recommend(st, date) {
   const pos = position(st, date);
   if (!pos) return { session: 'rest', reason: `计划将于 ${fmtDate(parseKey(st.startDate))} 开始` };
   const key = dateKey(date);
-  const order = orderFor(pos.week);
+  const order = orderFor(pos.week, st);
   const done = doneSessions(st, pos, key);
-  const required = order.slice(0, requiredFor(pos.week)).filter((s) => !done.includes(s));
+  const required = order.slice(0, requiredFor(pos.week, st)).filter((s) => !done.includes(s));
   if (!required.length) {
-    if (pos.week === 12 && !done.includes('press')) return { session: 'rest', reason: '三项测试已完成，推举测试可选' };
+    if (!isMike(st) && pos.week === 12 && !done.includes('press')) return { session: 'rest', reason: '三项测试已完成，推举测试可选' };
     return { session: 'rest', reason: '本周训练已全部完成 🎉 好好恢复' };
   }
   const yesterday = doneOn(st, addDays(date, -1));
   const clash = (s) => yesterday && isLower(yesterday) && isLower(s);
   const sched = scheduledFor(st, date, pos.week);
-  const label = (s) => (pos.week === 12 ? `${LIFT_NAMES[s]}测试` : SESSION_LABEL[s]);
+  const label = (s) => (!isMike(st) && pos.week === 12 ? `${LIFT_NAMES[s]}测试` : SESSION_LABEL[s]);
 
   // Scheduled slots left after today (excluding today)
   let slotsAfter = 0;
@@ -122,10 +143,10 @@ function remainingPlan(st, date, todaySession) {
   const pos = position(st, date);
   if (!pos) return { plan: [], unplaced: [] };
   const key = dateKey(date);
-  const order = orderFor(pos.week);
+  const order = orderFor(pos.week, st);
   const done = doneSessions(st, pos, key);
   if (todaySession && todaySession !== 'rest') done.push(todaySession);
-  const left = order.slice(0, requiredFor(pos.week)).filter((s) => !done.includes(s));
+  const left = order.slice(0, requiredFor(pos.week, st)).filter((s) => !done.includes(s));
   if (!left.length) return { plan: [], unplaced: [] };
 
   const after = [];
@@ -170,7 +191,7 @@ function candidates(st, slot) {
 }
 function nextDayLower(st, date) {
   const pos = position(st, addDays(date, 1));
-  if (!pos || pos.week === 12) return false;
+  if (!pos || isTestWeek(pos.week, st)) return false;
   const s = scheduledFor(st, addDays(date, 1), pos.week);
   return !!s && isLower(s);
 }
@@ -220,6 +241,8 @@ const READINESS = {
 function buildSession(st, date, sessionId, opts = {}) {
   const pos = position(st, date);
   if (!pos || !SESSIONS[sessionId]) return null;
+  if (isMike(st)) return programOfSession(sessionId) === 'mike' ? buildMike(st, date, pos, sessionId, opts) : null;
+  if (programOfSession(sessionId) !== '531') return null;
   const W = WEEKS[pos.week - 1];
   const r = opts.readiness || 'normal';
   const swaps = opts.swaps || {};
@@ -306,6 +329,97 @@ function buildTest(st, pos, lift, r) {
   };
 }
 
+/* ---------- Mike 卧推增力计划 ---------- */
+/** Bench / close-grip 1RM for a cycle: the entered values, then each week-16 test result (close-grip scales with bench). */
+function mikeMax(st, cycle, which) {
+  const m = st.mike || {};
+  const bench0 = m.bench1RM || 0;
+  const cg0 = m.cg1RM || Math.round(bench0 * 0.9 * 2) / 2;
+  if (cycle <= 0) return which === 'cg' ? cg0 : bench0;
+  const prevBench = mikeMax(st, cycle - 1, 'bench');
+  const tested = st.tests[cycle - 1] && st.tests[cycle - 1].bench;
+  const bench = tested || prevBench;
+  if (which === 'bench') return bench;
+  return Math.round(mikeMax(st, cycle - 1, 'cg') * (prevBench ? bench / prevBench : 1) * 100) / 100;
+}
+
+function buildMike(st, date, pos, sid, opts = {}) {
+  const W = MIKE_WEEKS[pos.week - 1];
+  const r = opts.readiness || 'normal';
+  const inc = st.plateInc || 2.5;
+  const bench = mikeMax(st, pos.cycle, 'bench');
+  const cg = mikeMax(st, pos.cycle, 'cg');
+  const notes = [MIKE_WARMUP];
+  const blocks = [];
+  const acc = (key, title, sets, reps, note, optional) => ({ key, type: 'sets', title, sets, reps, note, optional });
+
+  if (W.test || sid === 'mikeTest') {
+    const ladder = [[0, '8-10', '空杠热身'], [40, '5-8', '热身'], [60, '3-6', '热身'], [80, '1-2', '热身'], [92.5, 1, '90–95%'], [102.5, 1, '冲新极限']];
+    const rows = ladder.map(([pct, reps, label]) => ({ pct, reps, label, w: pct ? roundTo(bench * pct / 100, inc) : 20 }));
+    notes.push('试举之间休息 3–5 分钟，必须有保护', '最后一组按状态加重，以标准完成的最大重量为新极限 🎉');
+    if (r === 'tired') notes.unshift('⚠️ 状态不好不建议测极限，可以改天再测');
+    return { pos, week: W, sessionId: sid, test: true, kind: 'upper', notes,
+      blocks: [{ key: 'main', type: 'main', title: '卧推极限测试 · 杠铃卧推', sub: `当前 1RM ${fmtW(roundTo(bench, inc))}kg`, rows, lift: 'bench', test: true }] };
+  }
+
+  if (sid === 'mike1') {
+    const [sets, reps, pct, rpe] = W.b;
+    const w = roundTo(bench * pct / 100, inc);
+    const main = { key: 'main', type: 'main', title: '主项 · 杠铃卧推', sub: `${pct}% 1RM · RPE ${rpe}`, lift: 'bench',
+      rows: Array.from({ length: sets }, () => ({ pct, reps, w })) };
+    if (W.phase === 1) {
+      blocks.push(acc('fly', '激活 · 蝴蝶机夹胸', 2, '20', '先做两组激活胸肌，轻重量'));
+      blocks.push(main);
+      blocks.push(acc('db', '辅助 · 哑铃上斜 / 平板卧推', 4, '8-10', '哪个弱练哪个，二选一 · RPE 8 · 组间 3 分钟'));
+      blocks.push(acc('machine', '辅助 · 固定器械推胸', 4, '8-10', '根据弱项在上 / 中 / 下胸三选二 · RPE 8'));
+      blocks.push(acc('dips', '辅助 · 双杠 / 俯卧撑', 3, '力竭', '看体能选做，累了可以不做', true));
+    } else {
+      blocks.push(main);
+      const v = MIKE_VARIANTS[(st.mike && st.mike.variant) || 'pause'] || MIKE_VARIANTS.pause;
+      const isPause = (st.mike && st.mike.variant || 'pause') === 'pause';
+      blocks.push({ key: 'var', type: 'sets', title: `五选一 · ${v.name}`, sub: '当天卧推重量的 80%', w: roundTo(w * 0.8, inc), sets: 3,
+        reps: isPause ? String({ 1: 6, 2: 4, 3: 2 }[W.pause]) : '6', note: `${v.cue}${isPause ? ` 本周暂停 ${W.pause} 秒。` : ''}` });
+      blocks.push(acc('db', '辅助 · 哑铃上斜 / 平板卧推', 4, '8-10', '哪个弱练哪个，二选一 · RPE 8'));
+      blocks.push(acc('dips', '辅助 · 双杠', 4, '12', '有条件可以负重'));
+      blocks.push(acc('machine', '辅助 · 固定器械推胸', 4, '8-12', '哪里弱练哪里，选 1–2 个；体能不足只做一个 · RPE 8'));
+    }
+  } else {
+    const [pct, rpe] = W.cg;
+    const w = roundTo(cg * pct / 100, inc);
+    if (W.phase === 1) {
+      const w2 = roundTo(w * 0.9, inc);
+      blocks.push({ key: 'main', type: 'main', title: '主项 · 窄推 / 弹力带卧推', sub: `窄推 1RM 的 ${pct}% · RPE ${rpe}`, lift: 'bench',
+        rows: [{ pct, reps: 8, w }, { pct, reps: 8, w }, { pct: Math.round(pct * 0.9), reps: 8, w: w2, label: '减重 10%' }, { pct: Math.round(pct * 0.9), reps: 8, w: w2, label: '减重 10%' }] });
+      notes.push('三头弱、锁定不足练窄推；胸比三头弱但锁定不足练弹力带卧推');
+      blocks.push(acc('dips', '辅助 · 双杠（不负重）', 4, '做到最多', '高次数，能做多少做多少'));
+      blocks.push(acc('pushdown', '辅助 · 三头直杆下压', 4, '8-12', 'RPE 8 · 组间 3 分钟'));
+      blocks.push(acc('ohext', '辅助 · 哑铃颈后臂屈伸', 4, '8-12', 'RPE 8'));
+      blocks.push(acc('hammer', '辅助 · 锤式弯举', 4, '12', 'RPE 8'));
+      blocks.push(acc('curl', '辅助 · 哑铃 / 杠铃弯举', 4, '12', 'RPE 8'));
+    } else {
+      const [sets, reps] = W.b;
+      blocks.push({ key: 'main', type: 'main', title: '主项 · 窄推', sub: `窄推 1RM 的 ${pct}% · RPE ${rpe}`, lift: 'bench',
+        rows: Array.from({ length: sets }, () => ({ pct, reps, w })) });
+      blocks.push(acc('dips', '辅助 · 双杠', 4, '12', '有条件可以负重'));
+      blocks.push(acc('pushdown', '辅助 · 三头绳索 / 直杆下压', 4, '12', 'RPE 8'));
+      blocks.push(acc('hammer', '辅助 · 锤式弯举', 4, '15', 'RPE 8'));
+      blocks.push(acc('curl', '辅助 · 哑铃 / 杠铃弯举', 4, '12', 'RPE 8'));
+    }
+  }
+
+  let out = blocks;
+  if (r === 'tired') {
+    out = blocks.filter((b) => !b.optional).map((b) => (b.type === 'sets' && b.key !== 'var' ? { ...b, sets: Math.max(2, b.sets - 1) } : b));
+    notes.push('疲劳模式：辅助动作各减 1 组，可选动作跳过；主项按 RPE 下限完成');
+  } else if (r === 'short') {
+    out = blocks.filter((b) => b.type === 'main' || b.key === 'var');
+    notes.push('时间紧：只做主项（和五选一），辅助动作今天跳过');
+  } else if (r === 'great') notes.push('状态好：主项可以按 RPE 上限完成，但不要随意加重');
+  if (W.taper) notes.push('测试前减量周：重量轻是为了下周测极限时状态最好');
+  notes.push('其他部位照常训练，但别上太大重量，避免影响卧推进度');
+  return { pos, week: W, sessionId: sid, blocks: out, notes, kind: 'upper' };
+}
+
 /* ---------- nutrition ---------- */
 const GOALS = {
   bulk: { label: '增肌', kcal: 250, protein: 2.0, fat: 0.9 },
@@ -320,6 +434,16 @@ const GOALS = {
 function nutritionFor(st, kind) {
   const p = st.profile;
   const g = GOALS[p.goal] || GOALS.maintain;
+  if (isMike(st)) {
+    // Plan rules: carbs 3.5–5 g/kg, protein 1.5–1.8 g/kg, fat 0.5 g/kg
+    const train = kind !== 'rest';
+    const carbKg = { bulk: train ? 5 : 4, maintain: train ? 4.5 : 3.5, cut: train ? 3.5 : 3 }[p.goal] || 4;
+    const protein = Math.round(p.weight * (p.goal === 'maintain' ? 1.6 : 1.8));
+    const fat = Math.round(p.weight * 0.5);
+    const carbs = Math.round(p.weight * carbKg);
+    const water = Math.round((p.weight * 35 + (train ? 600 : 0)) / 100) * 100;
+    return { kcal: Math.round((protein * 4 + carbs * 4 + fat * 9) / 10) * 10, protein, fat, carbs, water, kind, training: train, goal: g, rule: 'mike' };
+  }
   const bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === 'male' ? 5 : -161);
   const burn = kind === 'lower' ? 5 * p.weight : kind === 'upper' ? 3.5 * p.weight : 0;
   const kcal = Math.round((bmr * p.activity + burn + g.kcal) / 10) * 10;
@@ -351,6 +475,7 @@ function mealsFor(st, n) {
 }
 function nutritionTips(n) {
   const tips = [];
+  if (n.rule === 'mike') tips.push('Mike 卧推增力计划的饮食：碳水 3.5–5 g/kg 体重，蛋白质 1.5–1.8 g/kg，脂肪 0.5 g/kg，分 3–4 餐吃完，误差 10% 以内都可以。');
   if (n.kind === 'lower') tips.push('今天是大重量下肢日，碳水最高：练前 1–2 小时吃够主食，练后补足碳水和蛋白。');
   if (n.kind === 'upper') tips.push('上肢日：碳水适中，集中在练前和练后。');
   if (!n.training) tips.push('休息日：碳水降低、蛋白质不变，多吃蔬菜和健康脂肪。');
@@ -374,5 +499,6 @@ function sessionSummary(st, date, sessionId, readiness) {
 if (typeof module !== 'undefined') {
   module.exports = { dateKey, parseKey, addDays, dayDiff, weekdayIdx, mondayOf, roundTo, fmtW, epley, baseTM, tmFor,
     position, recommend, remainingPlan, buildSession, pickExercises, candidates, ranked, nutritionFor, mealsFor,
-    variantOf, sessionSummary, scheduledFor, orderFor, requiredFor, doneSessions, doneOn };
+    variantOf, sessionSummary, scheduledFor, orderFor, requiredFor, doneSessions, doneOn,
+    progOf, isMike, programOfSession, isTestWeek, weekName, asProgram, mikeMax, buildMike };
 }
