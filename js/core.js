@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.6.0';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -177,6 +177,10 @@ const ICONS = {
   plus: svgI('<path d="M12 5v14M5 12h14"/>', false),
   back: svgI('<path d="M15 5l-7 7 7 7"/>', false),
   close: svgI('<path d="M6 6l12 12M18 6 6 18"/>', false),
+  addUser: svgI('<circle cx="10" cy="7.5" r="4"/><path d="M2.5 20.5c.7-4 3.7-6.5 7.5-6.5 1.6 0 3 .4 4.2 1.2"/><path d="M18.5 14v7M15 17.5h7"/>', false),
+  contacts: svgI('<circle cx="9" cy="7.5" r="4"/><path d="M1.5 20.5c.7-4 3.7-6.5 7.5-6.5s6.8 2.5 7.5 6.5z"/><path d="M17 5h5M17 9h5M18.5 13H22"/>'),
+  feed: svgI('<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2.2c1.9 0 3.6.7 5 1.8l-3.9 3.6L9.6 4.6c.8-.3 1.6-.4 2.4-.4zM4.6 9.6l5.2 1.9-3.6 3.9a7.8 7.8 0 0 1-1.6-5.8zm5.8 10.2-1.9-5.2 3.9 3.6-2 1.6zm4-1.6-3.6-3.9 5.2-1.9v5.8zm1.7-7.6-1.9-5.2a7.8 7.8 0 0 1 4.8 6.6z"/>'),
+  gear: svgI('<path fill-rule="evenodd" d="M10.3 2h3.4l.6 2.6 1.6.9 2.5-.9 1.7 2.9-2 1.8v1.8l2 1.8-1.7 2.9-2.5-.9-1.6.9-.6 2.6h-3.4l-.6-2.6-1.6-.9-2.5.9-1.7-2.9 2-1.8v-1.8l-2-1.8 1.7-2.9 2.5.9 1.6-.9zM12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/>'),
   chevron: svgI('<path d="M9 5l7 7-7 7"/>', false),
   bell: svgI('<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2H4.5z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>', false),
   calc: svgI('<rect x="5" y="2.5" width="14" height="19" rx="3"/><rect x="8" y="5.5" width="8" height="4" rx="1"/><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.5h.01M12 16.5h.01M15.5 16.5h.01"/>', false),

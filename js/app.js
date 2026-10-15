@@ -3,7 +3,7 @@
 
 let currentView = 'home';
 const TABS = [['home', '训练', 'train'], ['challenge', '挑战', 'challenge'], ['library', '动作', 'library'], ['history', '历史', 'history'], ['me', '我的', 'me']];
-const RENDER = { home: renderHome, challenge: renderChallenge, library: renderLibrary, history: renderHistory, me: renderMe, workout: renderWorkout };
+const RENDER = { home: renderHome, challenge: renderChallenge, library: renderLibrary, history: renderHistory, me: renderMe, workout: renderWorkout, friends: renderFriends };
 
 function render() {
   if (!state.onboarded && !wiz) { startWizard(false); return; }
@@ -29,7 +29,7 @@ $('[data-fab]').addEventListener('click', () => {
   currentView = 'workout'; render(); window.scrollTo(0, 0);
 });
 
-bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings(); bindMe();
+bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings(); bindMe(); bindFriends();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
@@ -42,6 +42,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !wiz) { scheduleReminders(); render(); } });
+captureInvite();
 cloudInit();
 render();
 scheduleReminders();

@@ -77,6 +77,7 @@ function applyRemote(remote) {
 async function cloudPull() {
   await reconcile();
   welcomeIfNew();
+  if (typeof socialAfterLogin === 'function') socialAfterLogin();
 }
 /** First sign-in with nothing set up yet: greet and go straight to the questionnaire (returning users are already home). */
 function welcomeIfNew() {
@@ -136,6 +137,7 @@ async function cloudSignOut() {
   if (state.meta.syncedAt < state.meta.updatedAt) await cloudPush();
   if (cloud.status === 'error' && !confirm('最近的修改还没同步到云端，退出会丢失这些修改。仍然退出？')) return;
   await cloud.client.auth.signOut();
+  Object.assign(social, { me: null, friends: [], incoming: [], outgoing: [], feed: [], cheers: [], loaded: false, error: '' });
   localStorage.removeItem(STORAGE_KEY);
   state = defaultState();
   currentView = 'home';
@@ -328,7 +330,7 @@ function bindCloud() {
   });
   // account buttons live on the 我的 page and on the questionnaire's welcome step
   document.addEventListener('click', (e) => {
-    const b = e.target.closest('#view-me button, #view-wizard button');
+    const b = e.target.closest('#view-me button, #view-wizard button, #view-friends button');
     if (!b || !cloud.client) return;
     const a = b.dataset.act;
     if (a === 'login') openLoginSheet();

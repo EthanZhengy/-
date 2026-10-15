@@ -92,7 +92,8 @@ function renderHome() {
   const t = todayInfo();
   const name = state.profile.name;
   let html = `<div class="page-head"><div><div class="muted">${fmtDate(t.date)} ${WEEKDAYS[weekdayIdx(t.date)]}</div>
-    <h1>${greeting()}${name ? `，${esc(name)}` : ''}</h1></div></div>`;
+    <h1>${greeting()}${name ? `，${esc(name)}` : ''}</h1></div>
+    ${cloudEnabled() ? `<button class="fr-entry" data-act="friends">${ICONS.addUser}朋友${social.incoming.length ? `<i class="dot-badge">${social.incoming.length}</i>` : ''}</button>` : ''}</div>`;
   html += dietCard(t);
   html += `<div class="utabs">${[['today', '今日训练'], ['week', '本周安排'], ['food', '饮食建议']].map(([k, l]) => `<button data-htab="${k}" class="${homeTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   if (homeTab === 'today') html += homeToday(t);
@@ -204,6 +205,7 @@ function bindHome() {
       if (ds.mark) { if (!markOffline(state, w, ds.mark, t.date)) return toast('这一周没有空的日期可以标记'); }
       else unmarkOffline(state, w, ds.unmark);
     } else if (ds.act === 'start') { currentView = 'workout'; render(); window.scrollTo(0, 0); return; }
+    else if (ds.act === 'friends') return openFriends();
     else if (ds.act === 'start-now') state.startDate = dateKey(mondayOf(t.date));
     else return;
     save(); render();
@@ -251,6 +253,7 @@ function bindSheet() {
 function snapshot(date, log) {
   if (log.done && !log.offline && SESSIONS[log.session]) log.result = summarizeSession(state, date, log.session, log);
   else delete log.result;
+  postActivity(date, log); // share the day's workout with friends (no-op when signed out)
 }
 
 function renderWorkout() {

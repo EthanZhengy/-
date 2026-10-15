@@ -287,4 +287,5 @@ function finishWizard() {
   scheduleReminders();
   render();
   toast('计划已生成，开始训练吧！');
+  if (typeof handlePendingInvite === 'function') handlePendingInvite();
 }

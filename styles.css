@@ -404,3 +404,44 @@ body.sheet-open .toast { bottom: auto; top: calc(16px + env(safe-area-inset-top)
 .g-logo { width: 20px; height: 20px; }
 .or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 16px 0 10px; }
 .or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* ============ 朋友 ============ */
+body[data-mode=friends] .tabbar, body[data-mode=friends] .fab { display: none; }
+body[data-mode=friends] { background: linear-gradient(180deg, #e9e8fb 0%, #f3eef6 45%, var(--bg) 100%) fixed; }
+@media (prefers-color-scheme: dark) { body[data-mode=friends] { background: linear-gradient(180deg, #1b1a33 0%, var(--bg) 60%) fixed; } }
+.fr-entry { border: 0; background: var(--card); color: var(--text); border-radius: 999px; padding: 8px 14px 8px 10px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; position: relative; box-shadow: var(--shadow); align-self: center; }
+.fr-entry .ic { width: 20px; height: 20px; }
+.dot-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; font-style: normal; display: grid; place-items: center; }
+.fr-nav span { position: relative; }
+.fr-head { display: flex; align-items: center; gap: 10px; margin: 6px 0 4px; }
+.fr-head .icon-round { background: transparent; }
+.fr-add { border: 0; background: none; color: var(--text); display: inline-flex; align-items: center; gap: 6px; font-size: 16px; cursor: pointer; }
+.fr-h1 { font-size: 26px; font-weight: 800; margin: 6px 4px 14px; }
+.fr-day { display: flex; justify-content: space-between; color: var(--muted); font-size: 14px; font-weight: 600; margin: 18px 4px 10px; }
+.fr-day span:last-child { font-weight: 400; font-size: 13px; }
+.fr-card { display: flex; gap: 14px; align-items: center; background: var(--card); border-radius: 22px; padding: 16px; margin-bottom: 10px; box-shadow: var(--shadow); }
+.fr-title { font-size: 18px; display: block; margin-bottom: 4px; }
+.fr-card .sep { color: var(--line); margin: 0 4px; }
+.fr-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: none; }
+.cheer { border: 0; background: var(--card-2); border-radius: 12px; padding: 5px 10px; font-size: 14px; cursor: pointer; color: var(--text); }
+.cheer.on { background: color-mix(in srgb, var(--r-p) 18%, var(--card)); color: var(--r-p); font-weight: 700; }
+.cheer:disabled { cursor: default; opacity: .8; }
+.f-avatar { width: 52px; height: 52px; border-radius: 16px; color: #fff; display: grid; place-items: center; font-size: 22px; font-weight: 800; flex: none; }
+.f-avatar.sm { width: 38px; height: 38px; border-radius: 12px; font-size: 16px; }
+.fr-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.fr-row:first-child { border-top: 0; }
+.fr-row.found { border: 0; background: var(--card-2); border-radius: 14px; padding: 10px 12px; margin-top: 12px; }
+.fr-me { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.fr-me-actions { display: flex; gap: 8px; width: 100%; }
+.fr-me-actions .btn { flex: 1; }
+.fr-code { font-size: 28px; font-weight: 800; letter-spacing: 4px; color: var(--primary); font-variant-numeric: tabular-nums; }
+.fr-empty { padding: 28px 20px; }
+.fr-hero { font-size: 48px; margin-bottom: 6px; }
+.sec-title.sm { font-size: 16px; margin: 18px 4px 8px; }
+.fr-nav { position: fixed; z-index: 10; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(3, 1fr); background: var(--card); border-top: 1px solid var(--line); padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); }
+.fr-nav button { border: 0; background: none; color: var(--text); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.fr-nav button .ic { width: 28px; height: 28px; }
+.fr-nav button.on { color: var(--primary); }
+body[data-mode=friends] { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+.fr-nav button { position: relative; }
+.fr-nav .dot-badge { top: -2px; right: calc(50% - 26px); }
