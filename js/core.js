@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -209,6 +209,8 @@ const EQ_GLYPH = {
   machine: svgI('<rect x="4" y="3" width="6" height="18" rx="1.5"/><path d="M10 8h8M14 8v8M12 16h7"/>', false),
   body: svgI('<circle cx="12" cy="4.8" r="2"/><path d="M12 7.5v6.5M7.5 10.5h9M12 14l-3 6M12 14l3 6"/>', false),
   band: svgI('<path d="M3.5 12c4.2-6 12.8-6 17 0-4.2 6-12.8 6-17 0z"/><path d="M8 12h8"/>', false),
+  kettlebell: svgI('<path d="M8.5 9.5a3.5 3.5 0 1 1 7 0"/><circle cx="12" cy="15" r="5.5"/>', false),
+  other: svgI('<circle cx="12" cy="12" r="8"/><path d="M4.5 10c3 1.5 12 1.5 15 0"/>', false),
 };
 
 /* ================= Bottom sheet ================= */

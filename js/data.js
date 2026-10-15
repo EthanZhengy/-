@@ -113,7 +113,7 @@ const MIKE_VARIANTS = {
 const EQUIPMENT = {
   barbell: '杠铃 + 杠铃片', rack: '深蹲架', bench: '卧推凳', dumbbell: '哑铃', pullup: '单杠 / 引体架',
   dip: '双杠', cable: '龙门架 / 绳索', machine: '固定器械（腿弯举、腿屈伸、器械划船等）',
-  band: '弹力带', trapbar: '六角杠铃', ssb: '安全深蹲杠', legpress: '腿举机',
+  band: '弹力带', trapbar: '六角杠铃', ssb: '安全深蹲杠', legpress: '腿举机', kettlebell: '壶铃',
 };
 const INJURIES = { shoulder: '肩', lowerBack: '腰 / 下背', knee: '膝', elbow: '肘', wrist: '手腕' };
 
@@ -212,13 +212,37 @@ const EXERCISES = [
   { id: 'dead_hang', cue: '双手握单杠悬挂，肩部轻微下沉，坚持到握不住为止。', name: '握力练习（单杠悬挂）', slot: 'lower', m: 'grip', eq: ['pullup'], avoid: ['shoulder'], reps: '30-60 秒' },
 ];
 
+/* Photos (assets/ex/<id>_0.webp = start, _1.webp = finish) from the public-domain free-exercise-db. */
+const EX_IMG = {
+  ohp: 'Standing_Military_Press', seated_ohp: 'Seated_Barbell_Military_Press', db_ohp: 'Seated_Dumbbell_Press',
+  bb_bench: 'Barbell_Bench_Press_-_Medium_Grip', db_bench: 'Dumbbell_Bench_Press', floor_press: 'Floor_Press',
+  bb_squat: 'Barbell_Full_Squat', box_squat: 'Box_Squat', front_squat: 'Front_Squat_Clean_Grip', leg_press: 'Leg_Press',
+  goblet: 'Goblet_Squat', conv_dl: 'Barbell_Deadlift', trap_dl: 'Trap_Bar_Deadlift', sumo_dl: 'Sumo_Deadlift',
+  rack_pull: 'Rack_Pulls', db_rdl: 'Stiff-Legged_Dumbbell_Deadlift', pullup: 'Pullups', lat_pd: 'Wide-Grip_Lat_Pulldown',
+  db_row: 'One-Arm_Dumbbell_Row', bb_row: 'Bent_Over_Barbell_Row', tbar_row: 'T-Bar_Row_with_Handle',
+  chest_row: 'Dumbbell_Incline_Row', cable_row: 'Seated_Cable_Rows', machine_row: 'Leverage_Iso_Row', inverted_row: 'Inverted_Row',
+  ab_wheel: 'Ab_Roller', hanging_lr: 'Hanging_Leg_Raise', db_sidebend: 'Dumbbell_Side_Bend', weighted_situp: 'Sit-Up',
+  cable_crunch: 'Cable_Crunch', plank: 'Plank', side_plank: 'Side_Bridge', dead_bug: 'Dead_Bug', pallof: 'Pallof_Press',
+  tri_pushdown: 'Triceps_Pushdown', oh_ext: 'Cable_Rope_Overhead_Triceps_Extension', skull: 'Lying_Triceps_Press',
+  dips: 'Dips_-_Triceps_Version', cg_pushup: 'Push-Ups_-_Close_Triceps_Position', db_curl: 'Dumbbell_Bicep_Curl',
+  hammer: 'Hammer_Curls', bb_curl: 'Barbell_Curl', cable_curl: 'Standing_Biceps_Cable_Curl', face_pull: 'Face_Pull',
+  rear_fly: 'Seated_Bent-Over_Rear_Delt_Raise', band_pa: 'Band_Pull_Apart', lat_raise: 'Side_Lateral_Raise',
+  lunge: 'Dumbbell_Lunges', bss: 'Split_Squat_with_Dumbbells', leg_ext: 'Leg_Extensions', leg_curl: 'Lying_Leg_Curls',
+  db_rdl_acc: 'Stiff-Legged_Dumbbell_Deadlift', back_ext: 'Hyperextensions_Back_Extensions', good_morning: 'Good_Morning',
+  pull_through: 'Pull_Through', hip_thrust: 'Barbell_Hip_Thrust', glute_bridge: 'Single_Leg_Glute_Bridge',
+  calf: 'Standing_Calf_Raises', farmer: 'Farmers_Walk',
+};
+Object.values(VARIANTS).flat().concat(EXERCISES).forEach((e) => { if (EX_IMG[e.id]) e.img = EX_IMG[e.id]; });
+function exImgUrl(img, i = 0) { return `assets/ex/${img}_${i}.webp`; }
+
 /* Exercise-library categories (left sidebar) and equipment filter (top chips). */
 const LIB_CATS = [['main', '主项'], ['chest', '胸'], ['back', '背'], ['leg', '腿'], ['shoulder', '肩'], ['bi', '二头'],
-  ['tri', '三头'], ['glute', '臀部'], ['calf', '小腿'], ['grip', '前臂握力'], ['core', '核心'], ['custom', '自定义']];
+  ['tri', '三头'], ['glute', '臀部'], ['calf', '小腿'], ['grip', '前臂握力'], ['core', '核心'], ['oly', '奥举'],
+  ['power', '爆发'], ['stretch', '拉伸'], ['custom', '自定义']];
 const MUSCLE_CAT = { vert: 'back', horiz: 'back', back: 'back', tri: 'tri', bi: 'bi', rear: 'shoulder', side: 'shoulder',
   quad: 'leg', ham: 'leg', glute: 'glute', calf: 'calf', grip: 'grip', stab: 'core', dyn: 'core', custom: 'custom' };
 const LIFT_CAT = { press: 'shoulder', bench: 'chest', squat: 'leg', deadlift: 'back' };
-const EQ_FILTERS = [['all', '全部'], ['barbell', '杠铃'], ['dumbbell', '哑铃'], ['cable', '绳索'], ['machine', '器械'], ['body', '自重'], ['band', '弹力带']];
+const EQ_FILTERS = [['all', '全部'], ['barbell', '杠铃'], ['dumbbell', '哑铃'], ['cable', '绳索'], ['machine', '器械'], ['body', '自重'], ['band', '弹力带'], ['kettlebell', '壶铃'], ['other', '其他']];
 function primaryEq(eq) {
   const toks = (eq || []).flatMap((t) => t.split('|'));
   if (toks.some((t) => ['barbell', 'trapbar', 'ssb'].includes(t))) return 'barbell';
@@ -226,6 +250,7 @@ function primaryEq(eq) {
   if (toks.includes('cable')) return 'cable';
   if (toks.some((t) => ['machine', 'legpress'].includes(t))) return 'machine';
   if (toks.includes('band')) return 'band';
+  if (toks.includes('kettlebell')) return 'kettlebell';
   return 'body';
 }
 
@@ -259,5 +284,5 @@ const DAY_FIT = {
 
 if (typeof module !== 'undefined') {
   module.exports = { LIFTS, LIFT_NAMES, TM_INC, LOWER, SESSIONS, SESSION_ORDER, TEST_ORDER, SESSION_LABEL,
-    WEEKS, EQUIPMENT, INJURIES, VARIANTS, EXERCISES, SLOT_NAMES, DAY_FIT, LIB_CATS, MUSCLE_CAT, LIFT_CAT, EQ_FILTERS, primaryEq, FOODS, PROGRAMS, MIKE_WEEKS, MIKE_WARMUP, MIKE_VARIANTS };
+    WEEKS, EQUIPMENT, INJURIES, VARIANTS, EXERCISES, SLOT_NAMES, DAY_FIT, LIB_CATS, MUSCLE_CAT, LIFT_CAT, EQ_FILTERS, primaryEq, EX_IMG, exImgUrl, FOODS, PROGRAMS, MIKE_WEEKS, MIKE_WARMUP, MIKE_VARIANTS };
 }

@@ -273,6 +273,7 @@ function workoutHtml(s, log, sid, doneToday) {
     const ticks = log.sets[key(b.key)] || [];
     html += `<div class="card block"><div class="row between"><div><div class="muted small">${esc(b.title.split(' · ')[0])}</div><h2>${esc(b.title.split(' · ').slice(1).join(' · '))}</h2></div>
       ${b.ex ? `<button class="btn tiny ghost" data-swap="${b.key}" data-slot="${b.slot}">换一个</button>` : `<span class="muted">${esc(b.sub || '')}</span>`}</div>`;
+    if (b.ex && b.ex.img) html += `<div class="blk-photo"><img src="${exImgUrl(b.ex.img, 0)}" alt="" loading="lazy"><img src="${exImgUrl(b.ex.img, 1)}" alt="" loading="lazy"></div>`;
     if (b.ex && b.ex.cue) html += `<p class="cue">${esc(b.ex.cue)}</p>`;
     if (b.note) html += `<p class="cue">${esc(b.note)}</p>`;
     if (b.type === 'main') {

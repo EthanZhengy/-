@@ -166,12 +166,20 @@ Google 一键登录：
 
 本地运行：`python3 -m http.server 8000`，然后打开 http://localhost:8000
 
+## 动作库与图片
+
+「动作」页收录约 870 个动作，每个都有起始 / 结束两张图片、中文名、动作步骤、主要和辅助肌群，可用中文或英文搜索、按器械筛选。新增「奥举」「爆发」「拉伸」分类。力量类动作点 ❤️ 后会被穿插进对应训练日。
+
+动作数据和图片来自 [free-exercise-db](https://github.com/yuhonas/free-exercise-db)（公共领域 / Unlicense），中文翻译为本项目制作。
+
 ## 文件
 
 ```
 index.html        页面骨架
 styles.css        样式（支持深色模式）
 js/data.js        12 周计划定义、主项替代动作、辅助动作库（含动作要点）、动作分类、常见食物
+js/exdb.js        动作图库：约 870 个动作（中文名、步骤、肌群、器械），由 free-exercise-db 生成
+assets/ex/        动作图片（起始 / 结束两张，webp）
 js/engine.js      计算：TM、每日训练、推荐与重新排期、辅助动作选择、营养
 js/stats.js       历史记录、App 外完成标记、训练量、估算 1RM、连续周数
 js/charts.js      SVG 图表（折线、柱状、日历热力图）与点击提示

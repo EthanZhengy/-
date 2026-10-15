@@ -1,4 +1,4 @@
-const CACHE = 'ianz-v11';
+const CACHE = 'ianz-v12';
 const ASSETS = ['./', 'index.html', 'styles.css', 'manifest.json', 'icons/icon.svg',
   'js/data.js', 'js/engine.js', 'js/stats.js', 'js/charts.js', 'js/core.js', 'js/vendor/supabase.js', 'js/config.js', 'js/cloud.js', 'js/wizard.js',
   'js/home.js', 'js/challenge.js', 'js/library.js', 'js/history.js', 'js/me.js', 'js/social.js', 'js/app.js'];
@@ -17,6 +17,14 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   // Only cache the app itself; never cache cloud API / login requests.
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== self.location.origin) return;
+  // Exercise photos never change: serve from cache first, fetch once.
+  if (new URL(e.request.url).pathname.includes('/assets/ex/')) {
+    e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request).then((res) => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
+      return res;
+    })));
+    return;
+  }
   e.respondWith(
     fetch(e.request, { cache: 'no-cache' }) // revalidate with the server instead of the browser's HTTP cache
       .then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); return res; })
