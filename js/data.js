@@ -214,7 +214,7 @@ const EXERCISES = [
 
 /* Photos (assets/ex/<id>_0.webp = start, _1.webp = finish) from the public-domain free-exercise-db. */
 const EX_IMG = {
-  ohp: 'Standing_Military_Press', seated_ohp: 'Seated_Barbell_Military_Press', db_ohp: 'Seated_Dumbbell_Press',
+  ohp: 'Standing_Military_Press', landmine: 'Single-Arm_Linear_Jammer', cable_lat: 'Standing_Low-Pulley_Deltoid_Raise', seated_ohp: 'Seated_Barbell_Military_Press', db_ohp: 'Seated_Dumbbell_Press',
   bb_bench: 'Barbell_Bench_Press_-_Medium_Grip', db_bench: 'Dumbbell_Bench_Press', floor_press: 'Floor_Press',
   bb_squat: 'Barbell_Full_Squat', box_squat: 'Box_Squat', front_squat: 'Front_Squat_Clean_Grip', leg_press: 'Leg_Press',
   goblet: 'Goblet_Squat', conv_dl: 'Barbell_Deadlift', trap_dl: 'Trap_Bar_Deadlift', sumo_dl: 'Sumo_Deadlift',
@@ -237,8 +237,7 @@ function exImgUrl(img, i = 0) { return `assets/ex/${img}_${i}.webp`; }
 
 /* Exercise-library categories (left sidebar) and equipment filter (top chips). */
 const LIB_CATS = [['main', '主项'], ['chest', '胸'], ['back', '背'], ['leg', '腿'], ['shoulder', '肩'], ['bi', '二头'],
-  ['tri', '三头'], ['glute', '臀部'], ['calf', '小腿'], ['grip', '前臂握力'], ['core', '核心'], ['oly', '奥举'],
-  ['power', '爆发'], ['stretch', '拉伸'], ['custom', '自定义']];
+  ['tri', '三头'], ['glute', '臀部'], ['calf', '小腿'], ['grip', '前臂握力'], ['core', '核心'], ['custom', '自定义']];
 const MUSCLE_CAT = { vert: 'back', horiz: 'back', back: 'back', tri: 'tri', bi: 'bi', rear: 'shoulder', side: 'shoulder',
   quad: 'leg', ham: 'leg', glute: 'glute', calf: 'calf', grip: 'grip', stab: 'core', dyn: 'core', custom: 'custom' };
 const LIFT_CAT = { press: 'shoulder', bench: 'chest', squat: 'leg', deadlift: 'back' };
