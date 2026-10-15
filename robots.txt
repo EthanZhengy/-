@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ethanzhengy.github.io/-/sitemap.xml
+Sitemap: https://ethanzhengy.github.io/ianz-fitness/sitemap.xml
