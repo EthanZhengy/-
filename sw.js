@@ -1,4 +1,4 @@
-const CACHE = 'ianz-v13';
+const CACHE = 'ianz-v14';
 const ASSETS = ['./', 'index.html', 'styles.css', 'manifest.json', 'icons/icon.svg',
   'js/data.js', 'js/engine.js', 'js/stats.js', 'js/charts.js', 'js/core.js', 'js/vendor/supabase.js', 'js/config.js', 'js/cloud.js', 'js/wizard.js',
   'js/home.js', 'js/challenge.js', 'js/library.js', 'js/history.js', 'js/me.js', 'js/social.js', 'js/app.js'];

@@ -141,14 +141,15 @@ function homeToday(t) {
       <li>轻松散步 20–40 分钟，促进恢复</li><li>髋、胸椎、肩部拉伸 10 分钟</li><li>早点睡，睡眠是最好的恢复</li></ul></div>`;
     return html;
   }
-  const s = buildSession(state, t.date, sid, { readiness: log.readiness, swaps: log.swaps[sid] || {} });
+  const s = sessionWithExtras(state, t.date, sid, log);
   const ticks = (k) => (log.sets[`${sid}:${k}`] || []).filter(Boolean).length;
-  const total = s.blocks.reduce((a, b) => a + (b.type === 'main' ? b.rows.length : b.sets), 0);
+  const nSets = (b) => blockRows(state, log, sid, b).length;
+  const total = s.blocks.reduce((a, b) => a + nSets(b), 0);
   const doneSets = s.blocks.reduce((a, b) => a + ticks(b.key), 0);
   html += `<div class="card session">
     <div class="row between"><h2>${sessionName(sid, pos.week)}</h2>${doneToday ? BADGE.app : `<span class="muted">${doneSets}/${total} 组</span>`}</div>
-    ${s.blocks.map((b) => `<div class="srow"><span class="dot${ticks(b.key) >= (b.type === 'main' ? b.rows.length : b.sets) ? ' on' : ''}"></span>
-      <div class="grow"><div>${esc(b.title.replace(/^(主项|第二主项|辅助|激活|五选一|拉类动作|腹肌核心|上肢辅助|下肢辅助) · /, ''))}</div>
+    ${s.blocks.map((b) => `<div class="srow"><span class="dot${ticks(b.key) >= nSets(b) ? ' on' : ''}"></span>
+      <div class="grow"><div>${esc(b.title.replace(/^(主项|第二主项|辅助|激活|五选一|自选|拉类动作|腹肌核心|上肢辅助|下肢辅助) · /, ''))}</div>
       <div class="muted">${b.type === 'main' ? b.rows.map((r) => `${fmtW(r.w)}×${r.reps}${r.plus ? '+' : ''}`).join(' · ') : `${b.w ? `${fmtW(b.w)}kg · ` : ''}${b.sets} 组 × ${esc(b.reps)}`}</div></div>
       <span class="muted small">${esc(b.title.split(' · ')[0])}</span></div>`).join('')}
     <button class="btn block big" data-act="start">${doneToday ? '查看训练' : doneSets ? '继续训练' : '开始训练'}</button></div>`;
@@ -258,11 +259,37 @@ function snapshot(date, log) {
 function renderWorkout() {
   const t = todayInfo();
   if (!t.pos || t.sid === 'rest') { currentView = 'home'; return render(); }
-  const s = buildSession(state, t.date, t.sid, { readiness: t.log.readiness, swaps: t.log.swaps[t.sid] || {} });
+  const s = sessionWithExtras(state, t.date, t.sid, t.log);
   const doneToday = t.log.done && t.log.session === t.sid;
   $('#view-workout').innerHTML = `<div class="wk-head"><button class="icon-round" data-act="back" aria-label="返回">${ICONS.back}</button>
       <div class="grow"><b>${sessionName(t.sid, t.pos.week)}</b><div class="muted">第 ${t.pos.week} 周 · ${esc(weekName(t.pos.week))} · ${READINESS[t.log.readiness || 'normal'].label}</div></div></div>
     ${workoutHtml(s, t.log, t.sid, doneToday)}`;
+}
+
+/* Default rest per block; the user can change it per exercise (state.restPref). */
+const REST_OPTIONS = [30, 45, 60, 90, 120, 150, 180, 240, 300];
+const restKey = (b) => (b.ex ? b.ex.id : b.title.replace(/^.*· /, ''));
+function restFor(b) {
+  const p = state.restPref && state.restPref[restKey(b)];
+  if (p) return p;
+  return b.type === 'main' ? (b.test ? 240 : 180) : b.key === 'sec' ? 120 : 90;
+}
+const fmtRest = (sec) => (sec % 60 ? (sec > 60 ? `${Math.floor(sec / 60)}分${sec % 60}秒` : `${sec}秒`) : `${sec / 60}分钟`);
+const repUnit = (b) => (/秒/.test(b.reps || '') ? '秒' : /米/.test(b.reps || '') ? '米' : '次');
+
+function setRowHtml(b, rows, r, i, done, key) {
+  const workN = rows.slice(0, i + 1).filter((x) => x.t === 'work').length;
+  const tag = r.t === 'work' ? workN : SET_TYPES[r.t][0];
+  const am = r.plus && r.r !== r.planR;
+  const meta = b.type === 'main' ? (r.label || (r.single ? '单次组' : r.pct ? `${r.pct}%` : '')) : '';
+  return `<div class="setrow ed${done ? ' done' : ''} t-${r.t}">
+    <button class="stype" data-stype="${b.key}" data-i="${i}" aria-label="组类型：${SET_TYPES[r.t]}">${tag}</button>
+    <label class="fld"><input type="number" inputmode="decimal" step="0.5" min="0" data-sw="${b.key}" data-i="${i}" value="${r.w ?? ''}" placeholder="${repUnit(b) === '次' ? '重量' : '负重'}"><span>kg</span></label>
+    <span class="x">×</span>
+    <label class="fld"><input type="number" inputmode="numeric" min="0" data-sr="${b.key}" data-i="${i}" value="${r.plus && !am ? '' : r.r ?? ''}" placeholder="${r.plus ? `${r.planR}+` : ''}"><span>${repUnit(b)}</span></label>
+    <span class="meta">${esc(meta)}</span>
+    <button class="tick" data-tick="${b.key}" data-i="${i}" data-rest="${restFor(b)}" aria-label="完成第 ${i + 1} 组">✓</button>
+  </div>${am ? `<div class="muted e1rm">估算 1RM ≈ ${fmtW(Math.round(epley(Number(r.w) || 0, Number(r.r)) * 2) / 2)}kg</div>` : ''}`;
 }
 
 function workoutHtml(s, log, sid, doneToday) {
@@ -271,37 +298,68 @@ function workoutHtml(s, log, sid, doneToday) {
   if (s.notes.length) html += `<ul class="notes">${s.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>`;
   s.blocks.forEach((b) => {
     const ticks = log.sets[key(b.key)] || [];
+    const rows = blockRows(state, log, sid, b);
     html += `<div class="card block"><div class="row between"><div><div class="muted small">${esc(b.title.split(' · ')[0])}</div><h2>${esc(b.title.split(' · ').slice(1).join(' · '))}</h2></div>
-      ${b.ex ? `<button class="btn tiny ghost" data-swap="${b.key}" data-slot="${b.slot}">换一个</button>` : `<span class="muted">${esc(b.sub || '')}</span>`}</div>`;
+      ${b.ex && !b.extra ? `<button class="btn tiny ghost" data-swap="${b.key}" data-slot="${b.slot}">换一个</button>` : b.sub ? `<span class="muted">${esc(b.sub)}</span>` : ''}</div>`;
     if (b.ex && b.ex.img) html += `<div class="blk-photo"><img src="${exImgUrl(b.ex.img, 0)}" alt="" loading="lazy"><img src="${exImgUrl(b.ex.img, 1)}" alt="" loading="lazy"></div>`;
     if (b.ex && b.ex.cue) html += `<p class="cue">${esc(b.ex.cue)}</p>`;
     if (b.note) html += `<p class="cue">${esc(b.note)}</p>`;
-    if (b.type === 'main') {
-      b.rows.forEach((r, i) => {
-        const am = log.amrap[`${key(b.key)}:${i}`];
-        html += `<div class="setrow${ticks[i] ? ' done' : ''}">
-          <button class="tick" data-tick="${b.key}" data-i="${i}" data-rest="${b.test ? 240 : 180}">${ticks[i] ? '✓' : i + 1}</button>
-          <div class="grow"><span class="muted">${r.label ? esc(r.label) + ' · ' : r.extra ? '单次组 · ' : ''}${r.pct}%</span>
-            <div><b class="w">${fmtW(r.w)}kg</b> × ${r.reps}${r.plus ? '<b class="plus">+</b>' : ''}</div></div>
-          ${r.plus ? `<input class="amrap" type="number" inputmode="numeric" placeholder="次数" data-amrap="${b.key}" data-i="${i}" value="${am ?? ''}">` : ''}
-        </div>
-        ${r.plus && am ? `<div class="muted e1rm">估算 1RM ≈ ${fmtW(Math.round(epley(r.w, Number(am)) * 2) / 2)}kg</div>` : ''}`;
-      });
-      if (b.test) {
-        const val = state.tests[s.pos.cycle] && state.tests[s.pos.cycle][b.lift];
-        html += `<label>测得的新 1RM (kg)</label><input type="number" inputmode="decimal" step="0.5" data-test="${b.lift}" value="${val ?? ''}" placeholder="最后一次标准完成的重量">
-          <p class="muted">填写后，下一轮的 TM 会按新 1RM × 90% 自动计算。</p>`;
-      }
-    } else {
-      html += `<div class="muted">${b.w ? `<b class="w">${fmtW(b.w)}kg</b> × ` : ''}${esc(b.reps)}${/[秒米]/.test(b.reps) ? '' : ' 次'} × ${b.sets} 组</div>
-        <div class="sets">${Array.from({ length: b.sets }, (_, i) => `<button class="set-btn${ticks[i] ? ' done' : ''}" data-tick="${b.key}" data-i="${i}" data-rest="${b.key === 'sec' ? 120 : 75}">${ticks[i] ? '✓' : i + 1}</button>`).join('')}</div>`;
+    const plan = b.type === 'main' ? '' : `计划 ${b.w ? `${fmtW(b.w)}kg × ` : ''}${esc(b.reps)}${/[秒米]/.test(b.reps) ? '' : ' 次'} × ${b.sets} 组`;
+    html += `<div class="blk-tools"><span class="muted small">${plan}</span><button class="rest-chip" data-restcfg="${b.key}">⏱ 休息 ${fmtRest(restFor(b))}</button></div>`;
+    rows.forEach((r, i) => { html += setRowHtml(b, rows, r, i, ticks[i], key(b.key)); });
+    html += `<div class="set-actions"><button data-addset="${b.key}">＋ 加一组</button>${rows.length > 1 ? `<button data-delset="${b.key}">－ 删一组</button>` : ''}${b.extra ? `<button class="danger" data-delex="${b.key}">移除动作</button>` : ''}</div>`;
+    if (b.test) {
+      const val = state.tests[s.pos.cycle] && state.tests[s.pos.cycle][b.lift];
+      html += `<label>测得的新 1RM (kg)</label><input type="number" inputmode="decimal" step="0.5" data-test="${b.lift}" value="${val ?? ''}" placeholder="最后一次标准完成的重量">
+        <p class="muted">填写后，下一轮的 TM 会按新 1RM × 90% 自动计算。</p>`;
     }
     html += '</div>';
   });
+  html += '<button class="btn ghost block" data-act="add-extra">＋ 添加动作</button>';
   html += doneToday
     ? `<div class="card center">${BADGE.app}<p>今天的训练已完成，记得吃练后餐。</p><button class="btn ghost block" data-act="undo-done">撤销完成</button></div>`
     : '<button class="btn block big" data-act="done">✅ 完成今天的训练</button>';
+  html += '<p class="muted small center">点组号切换 正式 / 热身 / 递减 / 力竭；重量和次数可以直接改</p>';
   return html;
+}
+
+/** Copy the planned rows into log.sx so they can be edited. */
+function editRows(log, sid, b) {
+  const k = `${sid}:${b.key}`;
+  if (!log.sx[k]) log.sx[k] = blockRows(state, log, sid, b).map(() => ({}));
+  return log.sx[k];
+}
+
+/* Exercise picker for 「添加动作」: same list as the 动作 tab. */
+let pick = { q: '', cat: 'chest' };
+function pickListHtml() {
+  const q = pick.q.trim().toLowerCase();
+  const items = libraryItems().filter((it) => (q ? it.name.toLowerCase().includes(q) || (it.en || '').toLowerCase().includes(q) : it.cats.includes(pick.cat)))
+    .filter((it, i, a) => a.findIndex((x) => x.id === it.id) === i).slice(0, 80);
+  return items.map((it) => `<button class="pick-row" data-pick="${esc(it.id)}">${exArt(it, 'pick-art')}<span class="grow">${esc(it.name)}</span><span class="muted">＋</span></button>`).join('')
+    || '<p class="muted">没有找到动作</p>';
+}
+function openPicker() {
+  ensureExdb();
+  openSheet('添加动作', `<label class="search">${ICONS.search}<input id="pxSearch" placeholder="搜索动作" value="${esc(pick.q)}"></label>
+    <div class="eq-chips">${LIB_CATS.filter(([k]) => k !== 'custom').map(([k, l]) => `<button data-pcat="${k}" class="${pick.cat === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    <div id="pxList">${pickListHtml()}</div>`, { type: 'pickex', reopen: openPicker });
+}
+function addExtra(it) {
+  const t = todayInfo();
+  if (!t.pos || t.sid === 'rest') return toast('今天是休息日');
+  const list = t.log.extra[t.sid] = t.log.extra[t.sid] || [];
+  list.push({ k: Date.now().toString(36), id: it.id, name: it.name, img: it.img || null, cue: it.cue || (it.s && it.s[0]) || '', reps: String(firstInt(it.reps) || 10) });
+  snapshot(t.date, t.log); save();
+  toast(`已加入今天的训练：${it.name}`);
+}
+function openRestPicker(bkey) {
+  const t = todayInfo();
+  const b = sessionWithExtras(state, t.date, t.sid, t.log).blocks.find((x) => x.key === bkey);
+  if (!b) return;
+  const cur = restFor(b);
+  openSheet(`休息时间 · ${b.title.replace(/^.*· /, '')}`, `<div class="chips">${REST_OPTIONS.map((sec) => `<button class="chip${sec === cur ? ' on' : ''}" data-restset="${sec}">${fmtRest(sec)}</button>`).join('')}</div>
+    <p class="muted">每次完成一组后自动开始倒计时。这个动作以后都会用这个休息时间。</p>`, { type: 'rest', rk: restKey(b) });
 }
 
 /* Rest timer shown after ticking a set */
@@ -337,19 +395,46 @@ function bindWorkout() {
     const { log, sid } = t;
     const ds = b.dataset;
     if (ds.act === 'back') { currentView = 'home'; render(); return; }
+    const blk = (k) => sessionWithExtras(state, t.date, sid, log).blocks.find((x) => x.key === k);
     if (ds.tick) {
       const k = `${sid}:${ds.tick}`;
       log.sets[k] = log.sets[k] || [];
       log.sets[k][ds.i] = !log.sets[k][ds.i];
-      if (log.sets[k][ds.i]) startRest(Number(ds.rest) || 90);
-    } else if (ds.swap) {
-      const s = buildSession(state, t.date, sid, { readiness: log.readiness, swaps: log.swaps[sid] || {} });
+      if (log.sets[k][ds.i]) {
+        const bb = blk(ds.tick);
+        const r = bb && blockRows(state, log, sid, bb)[ds.i];
+        if (bb && bb.ex && r && r.w) state.lastW[bb.ex.id] = { w: Number(r.w), r: Number(r.r) || 0 };
+        startRest(Number(ds.rest) || 90);
+      }
+    } else if (ds.stype) {
+      const rows = editRows(log, sid, blk(ds.stype));
+      const curT = blockRows(state, log, sid, blk(ds.stype))[ds.i].t;
+      rows[ds.i].t = SET_TYPE_ORDER[(SET_TYPE_ORDER.indexOf(curT) + 1) % SET_TYPE_ORDER.length];
+      toast(SET_TYPES[rows[ds.i].t]);
+    } else if (ds.addset) {
+      const bb = blk(ds.addset);
+      const cur = blockRows(state, log, sid, bb);
+      const last = cur[cur.length - 1] || {};
+      editRows(log, sid, bb).push({ w: last.w ?? null, r: last.r ?? 10, t: last.t === 'warm' ? 'work' : last.t || 'work' });
+    } else if (ds.delset) {
+      const rows = editRows(log, sid, blk(ds.delset));
+      if (rows.length > 1) rows.pop();
+      const tk = log.sets[`${sid}:${ds.delset}`];
+      if (tk) tk.length = Math.min(tk.length, rows.length);
+    } else if (ds.delex) {
+      log.extra[sid] = (log.extra[sid] || []).filter((x) => `x${x.k}` !== ds.delex);
+      delete log.sx[`${sid}:${ds.delex}`]; delete log.sets[`${sid}:${ds.delex}`];
+    } else if (ds.restcfg) return openRestPicker(ds.restcfg);
+    else if (ds.act === 'add-extra') return openPicker();
+    else if (ds.swap) {
+      const s = sessionWithExtras(state, t.date, sid, log);
       const cur = s.blocks.find((x) => x.key === ds.swap);
       const used = s.blocks.filter((x) => x.ex && x.key !== ds.swap).map((x) => x.ex.id);
       const list = ranked(state, ds.slot, sid, t.date).map((x) => x.e).filter((x) => !used.includes(x.id));
       if (list.length < 2) return toast('没有其他可替换的动作了');
       const next = list[(list.findIndex((x) => x.id === cur.ex.id) + 1) % list.length];
       log.swaps[sid] = { ...(log.swaps[sid] || {}), [ds.swap]: next.id };
+      delete log.sx[`${sid}:${ds.swap}`]; delete log.sets[`${sid}:${ds.swap}`];
       toast(`已换成：${next.name}`);
     } else if (ds.act === 'done') {
       log.session = sid; log.done = true; log.offline = false;
@@ -363,14 +448,46 @@ function bindWorkout() {
   root.addEventListener('change', (e) => {
     const el = e.target;
     const t = todayInfo();
-    if (el.dataset.amrap) {
-      t.log.amrap[`${t.sid}:${el.dataset.amrap}:${el.dataset.i}`] = el.value ? Number(el.value) : undefined;
-      snapshot(t.date, t.log); save(); render();
+    const ds = el.dataset;
+    if (ds.sw || ds.sr) {
+      const bkey = ds.sw || ds.sr;
+      const b = sessionWithExtras(state, t.date, t.sid, t.log).blocks.find((x) => x.key === bkey);
+      if (!b) return;
+      const v = el.value === '' ? null : Number(el.value);
+      const row = blockRows(state, t.log, t.sid, b)[ds.i];
+      if (ds.sr && row.plus) {
+        t.log.amrap[`${t.sid}:${bkey}:${ds.i}`] = v || undefined;
+        snapshot(t.date, t.log); save(); render();
+        return;
+      }
+      editRows(t.log, t.sid, b)[ds.i][ds.sw ? 'w' : 'r'] = v;
+      snapshot(t.date, t.log); save();
     } else if (el.dataset.test) {
       state.tests[t.pos.cycle] = { ...(state.tests[t.pos.cycle] || {}), [el.dataset.test]: Number(el.value) || undefined };
       snapshot(t.date, t.log); save();
       toast('已记录，下一轮计划会自动更新');
     }
+  });
+  // exercise picker and rest-time sheets
+  $('#sheet').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b || !sheetCtx) return;
+    const ds = b.dataset;
+    if (sheetCtx.type === 'pickex') {
+      if (ds.pcat) { pick.cat = ds.pcat; pick.q = ''; refreshSheet(); }
+      else if (ds.pick) {
+        const it = libraryItems().find((x) => x.id === ds.pick);
+        if (it) { addExtra(it); closeSheet(); render(); }
+      }
+    } else if (sheetCtx.type === 'rest' && ds.restset) {
+      state.restPref[sheetCtx.rk] = Number(ds.restset);
+      save(); closeSheet(); render();
+    }
+  });
+  $('#sheet').addEventListener('input', (e) => {
+    if (e.target.id !== 'pxSearch' || !sheetCtx || sheetCtx.type !== 'pickex') return;
+    pick.q = e.target.value;
+    $('#pxList').innerHTML = pickListHtml();
   });
   $('#rest').addEventListener('click', (e) => {
     const b = e.target.closest('button');

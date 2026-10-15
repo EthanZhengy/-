@@ -10,7 +10,7 @@ function ensureExdb() {
   exdbState = 'loading';
   const s = document.createElement('script');
   s.src = `js/exdb.js?v=${APP_VERSION}`;
-  s.onload = () => { exdbState = 'ready'; if (typeof render === 'function') render(); };
+  s.onload = () => { exdbState = 'ready'; if (typeof render === 'function') render(); if (sheetCtx && sheetCtx.type === 'pickex') refreshSheet(); };
   s.onerror = () => { exdbState = 'idle'; };
   document.head.appendChild(s);
 }
@@ -114,6 +114,8 @@ function openExercise(id) {
       <p class="muted">❤️ 喜欢的动作会被优先、经常安排；🚫 不做的动作不会出现在计划里。</p>
       ${it.id.startsWith('custom_') ? '<button class="btn danger block" data-act="del-custom">删除这个自定义动作</button>' : ''}`;
   }
+  const t = todayInfo();
+  if (t.pos && t.sid !== 'rest') actions += '<button class="btn block" data-act="add-today">＋ 加入今天的训练</button>';
   const muscles = it.pm ? `<p><b>主要肌群</b>：${it.pm.join('、')}${it.sm && it.sm.length ? `<br><b>辅助肌群</b>：${it.sm.join('、')}` : ''}</p>` : '';
   openSheet(it.name, `
     ${exPhotos(it)}
@@ -183,6 +185,11 @@ function bindLibrary() {
       else if (ds.pref === 'fav') { toggle(state.favorites, id); state.excluded = state.excluded.filter((x) => x !== id); }
       else if (ds.pref === 'ex') { toggle(state.excluded, id); state.favorites = state.favorites.filter((x) => x !== id); }
       else if (ds.act === 'wizard') { closeSheet(); return startWizard(true); }
+      else if (ds.act === 'add-today') {
+        const it = libraryItems().find((x) => x.id === id);
+        if (it) addExtra(it);
+        closeSheet(); currentView = 'workout'; render(); return;
+      }
       else if (ds.act === 'del-custom') {
         state.customEx = state.customEx.filter((x) => x.id !== id);
         state.favorites = state.favorites.filter((x) => x !== id);

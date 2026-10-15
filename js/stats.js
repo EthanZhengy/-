@@ -5,12 +5,61 @@ if (typeof module !== 'undefined') Object.assign(globalThis, require('./engine.j
 
 const firstInt = (s) => parseInt(String(s), 10) || 0;
 
+/* ---------- Editable sets ----------
+ * The plan gives default weight / reps per set. In the workout the user can change weight, reps
+ * and set type, add or remove sets, and add extra exercises. Overrides live in the day's log:
+ *   log.sx['<sid>:<blockKey>'] = [{ w, r, t }, ...]   (one entry per set; missing fields = plan)
+ *   log.extra[sid] = [{ k, id, name, img, cue }]       (exercises added by the user)
+ */
+const SET_TYPES = { work: '正式组', warm: '热身组', drop: '递减组', fail: '力竭组' };
+const SET_TYPE_ORDER = ['work', 'warm', 'drop', 'fail'];
+
+/** buildSession + the exercises the user added to this day. */
+function sessionWithExtras(st, date, sid, log) {
+  const s = buildSession(st, date, sid, { readiness: log.readiness, swaps: (log.swaps || {})[sid] || {} });
+  if (!s) return s;
+  ((log.extra || {})[sid] || []).forEach((e) => s.blocks.push({
+    key: `x${e.k}`, type: 'sets', ex: e, title: `自选 · ${e.name}`, sets: 3, reps: e.reps || '10', extra: true,
+  }));
+  return s;
+}
+
+function plannedRows(st, b) {
+  if (b.type === 'main') {
+    return b.rows.map((r) => ({ w: r.w, r: r.reps, t: r.label === '热身' ? 'warm' : 'work', plus: !!r.plus, pct: r.pct, label: r.label, single: !!r.extra }));
+  }
+  const last = b.ex && st.lastW && st.lastW[b.ex.id];
+  const w = b.w != null ? b.w : last ? last.w : null;
+  const r = firstInt(b.reps) || (last ? last.r : 10);
+  return Array.from({ length: b.sets }, () => ({ w, r, t: 'work' }));
+}
+
+/** The sets of one block as they will be done: plan merged with the user's edits. */
+function blockRows(st, log, sid, b) {
+  const plan = plannedRows(st, b);
+  const ov = log.sx && log.sx[`${sid}:${b.key}`];
+  const rows = !ov ? plan.map((r) => ({ ...r })) : ov.map((o, i) => {
+    const base = plan[i] ? { ...plan[i] } : { w: plan.length ? plan[plan.length - 1].w : null, r: plan.length ? plan[plan.length - 1].r : 10, t: 'work' };
+    if (o.w !== undefined) base.w = o.w;
+    if (o.r !== undefined) base.r = o.r;
+    if (o.t) base.t = o.t;
+    return base;
+  });
+  rows.forEach((r, i) => {
+    r.planR = r.r;
+    const a = (log.amrap || {})[`${sid}:${b.key}:${i}`];
+    if (r.plus && a) r.r = a;
+  });
+  return rows;
+}
+
 /**
  * What was actually done in a session. In-app sessions count ticked sets (all sets if none
- * were ticked) and use AMRAP reps where entered; offline sessions assume the plan was completed.
+ * were ticked), skip warm-up sets, and use the weight / reps the user entered; offline sessions
+ * assume the plan was completed.
  */
 function summarizeSession(st, date, sid, log) {
-  const s = buildSession(st, date, sid, { readiness: log.readiness, swaps: (log.swaps || {})[sid] || {} });
+  const s = sessionWithExtras(st, date, sid, log);
   if (!s) return null;
   const pos = s.pos;
   const main = s.blocks.find((b) => b.type === 'main') || s.blocks[0];
@@ -28,23 +77,21 @@ function summarizeSession(st, date, sid, log) {
   s.blocks.forEach((b) => {
     const ticks = sets[`${sid}:${b.key}`] || [];
     const any = !log.offline && ticks.some(Boolean);
-    if (b.type === 'main') {
-      b.rows.forEach((r, i) => {
-        if (any && !ticks[i]) return;
-        const a = amrap[`${sid}:main:${i}`];
-        const reps = a || r.reps;
-        out.volume += r.w * reps; out.sets++;
-        if (!out.top || r.w > out.top.w) out.top = { w: r.w, reps };
-        if (a) {
-          const v = Math.round(epley(r.w, a) * 2) / 2;
-          if (!out.e1rm || v > out.e1rm.value) out.e1rm = { value: v, w: r.w, reps: a, src: 'amrap' };
-        }
-      });
-    } else {
-      const n = any ? ticks.filter(Boolean).length : b.sets;
-      out.sets += n;
-      if (b.w) out.volume += b.w * firstInt(b.reps) * n;
-    }
+    blockRows(st, log, sid, b).forEach((r, i) => {
+      if (any && !ticks[i]) return;
+      if (r.t === 'warm') return;
+      const w = Number(r.w) || 0;
+      const reps = Number(r.r) || 0;
+      out.sets++;
+      out.volume += w * reps;
+      if (b.type !== 'main') return;
+      if (!out.top || w > out.top.w) out.top = { w, reps };
+      const a = amrap[`${sid}:${b.key}:${i}`];
+      if (r.plus && a) {
+        const v = Math.round(epley(w, a) * 2) / 2;
+        if (!out.e1rm || v > out.e1rm.value) out.e1rm = { value: v, w, reps: a, src: 'amrap' };
+      }
+    });
   });
   out.volume = Math.round(out.volume);
   return out;
@@ -177,5 +224,5 @@ function personalRecords(st, hist) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { summarizeSession, trainingHistory, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords, exerciseCounts };
+  module.exports = { summarizeSession, sessionWithExtras, blockRows, SET_TYPES, SET_TYPE_ORDER, trainingHistory, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords, exerciseCounts };
 }

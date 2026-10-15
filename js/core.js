@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.8.1';
+const APP_VERSION = '1.9.0';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -20,7 +20,7 @@ function defaultState() {
     },
     plateInc: 2.5,
     equipment: GYM_EQUIP.slice(),
-    injuries: [], favorites: [], excluded: [], customEx: [],
+    injuries: [], favorites: [], excluded: [], customEx: [], lastW: {}, restPref: {},
     schedule: [0, 1, 3, 4],
     trainTime: '18:30',
     startDate: dateKey(mondayOf(new Date())),
@@ -64,6 +64,7 @@ function logFor(key) {
   if (!state.logs[key]) state.logs[key] = { sets: {}, amrap: {}, swaps: {}, meals: {}, water: 0 };
   const l = state.logs[key];
   l.sets = l.sets || {}; l.amrap = l.amrap || {}; l.swaps = l.swaps || {}; l.meals = l.meals || {};
+  l.sx = l.sx || {}; l.extra = l.extra || {};
   return l;
 }
 const sessionName = (s, week) => (s === 'rest' ? '休息' : LIFT_NAMES[s] && week === 12 ? `${LIFT_NAMES[s]}测试` : SESSION_LABEL[s]);
