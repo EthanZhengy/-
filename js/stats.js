@@ -96,6 +96,13 @@ function blockRows(st, log, sid, b) {
   return rows;
 }
 
+/** Muscle group of an exercise (library category keys: chest, back, leg, shoulder…). */
+function exCat(ex, lift) {
+  const l = lift || ex.lift;
+  if (l && LIFT_CAT[l]) return LIFT_CAT[l];
+  if (ex.cats && ex.cats.length) return ex.cats.find((c) => c !== 'main') || ex.cats[0];
+  return MUSCLE_CAT[ex.m] || '';
+}
 /** Sets / volume of a free workout or custom day (only ticked sets count; warm-ups excluded). */
 function freeSummary(st, date, log, sid = 'free') {
   const s = sessionWithExtras(st, date, sid, log);
@@ -110,7 +117,7 @@ function freeSummary(st, date, log, sid = 'free') {
       if (r.t !== 'warm') volume += (Number(r.w) || 0) * (Number(r.r) || 0);
     });
   });
-  return { exercises: s.blocks.length, sets, done, volume: Math.round(volume), names: s.blocks.map((b) => b.ex.name) };
+  return { exercises: s.blocks.length, sets, done, volume: Math.round(volume), names: s.blocks.map((b) => b.ex.name), cats: s.blocks.map((b) => exCat(b.ex, b.lift)) };
 }
 
 /**

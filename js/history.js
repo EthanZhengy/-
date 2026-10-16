@@ -3,6 +3,70 @@
 
 let statsLift = 'squat';
 let histTab = 'log';
+let calMonth = 0; // months back from this one
+let calDay = null; // selected date key
+
+/* ---------- 月历: each day lists what was trained, in short (推肩 · 推胸 · 有氧) ---------- */
+const SESSION_SHORT = { press: '推肩', bench: '推胸', squat: '深蹲', deadlift: '硬拉', mike1: '推胸', mike2: '推臂', mikeTest: '测试' };
+const CAT_SHORT = { chest: '胸', back: '背', leg: '腿', glute: '臀', calf: '腿', shoulder: '肩', bi: '臂', tri: '臂', core: '腹', grip: '握力' };
+/** 自由训练: its title if the user named it, else the muscles of its exercises (most sets first). */
+function freeShort(r) {
+  if (r.title && r.title !== '自由训练') return r.title.slice(0, 4);
+  const n = {};
+  // r.cats is saved since 1.22; older records fall back to looking the names up
+  const cats = r.cats || (r.names || []).map((name) => {
+    const lift = LIFTS.find((l) => VARIANTS[l].some((v) => v.name === name));
+    if (lift) return LIFT_CAT[lift];
+    const e = allExercises(state).find((x) => x.name === name) || (typeof EXDB !== 'undefined' && EXDB.find((x) => x.name === name));
+    return e ? exCat(e) : '';
+  });
+  cats.forEach((cat) => { const c = CAT_SHORT[cat]; if (c) n[c] = (n[c] || 0) + 1; });
+  const top = Object.keys(n).sort((a, b) => n[b] - n[a]).slice(0, 2);
+  return top.length ? top.join('') : '训练';
+}
+function dayTags(l) {
+  if (!l) return [];
+  const tags = [];
+  if (l.done && SESSIONS[l.session]) tags.push({ t: SESSION_SHORT[l.session] || sessionName(l.session, 1).slice(0, 2), cls: l.offline ? 'off' : '' });
+  else if (l.done && l.result && l.result.custom) tags.push({ t: (l.result.title || '训练').slice(0, 4), cls: '' });
+  if (l.free && l.free.done && l.free.result) tags.push({ t: freeShort(l.free.result), cls: '' });
+  if (l.cardio && l.cardio.length) tags.push({ t: '有氧', cls: 'cardio' });
+  return tags;
+}
+function monthCalHtml() {
+  const now = new Date();
+  const m0 = new Date(now.getFullYear(), now.getMonth() - calMonth, 1);
+  const days = new Date(m0.getFullYear(), m0.getMonth() + 1, 0).getDate();
+  const lead = weekdayIdx(m0);
+  let n = 0;
+  let cells = '<span class="mc-pad"></span>'.repeat(lead);
+  for (let d = 1; d <= days; d++) {
+    const date = new Date(m0.getFullYear(), m0.getMonth(), d);
+    const key = dateKey(date);
+    const tags = dayTags(state.logs[key]);
+    if (tags.length) n++;
+    const cls = [tags.length ? 'has' : '', key === dateKey(now) ? 'today' : '', key === calDay ? 'sel' : '', date > now ? 'future' : ''].filter(Boolean).join(' ');
+    cells += `<button class="mc-day ${cls}" data-calday="${key}"><b>${d}</b>${tags.slice(0, 2).map((x) => `<i class="${x.cls}">${esc(x.t)}</i>`).join('')}${tags.length > 2 ? '<i class="more">…</i>' : ''}</button>`;
+  }
+  return `<div class="card"><div class="row between"><button class="icon-round sm" data-calnav="1" aria-label="上个月">‹</button>
+      <h2 class="mc-title">${m0.getFullYear()}年${m0.getMonth() + 1}月 <span class="muted">· 练了 ${n} 天</span></h2>
+      <button class="icon-round sm" data-calnav="-1" aria-label="下个月" ${calMonth ? '' : 'disabled'}>›</button></div>
+    <div class="mc-grid">${WEEKDAYS.map((w) => `<span class="mc-wd">${w.replace('周', '')}</span>`).join('')}${cells}</div>
+    ${calDay ? dayDetailHtml(calDay) : '<p class="muted small center">点某一天查看当天练了什么</p>'}</div>`;
+}
+function dayDetailHtml(key) {
+  const l = state.logs[key];
+  const d = parseKey(key);
+  const rows = [];
+  if (l && l.done && SESSIONS[l.session]) {
+    const pos = position(state, d);
+    rows.push(`<b>${sessionName(l.session, pos ? pos.week : 1)}</b> ${l.offline ? BADGE.offline : BADGE.app}`);
+  }
+  if (l && l.done && l.result && l.result.custom) rows.push(`<b>${esc(l.result.title)}</b> <span class="muted">${esc((l.result.names || []).join('、'))}</span>`);
+  if (l && l.free && l.free.done && l.free.result) { const r = l.free.result; rows.push(`<b>${esc(r.title)}</b> <span class="muted">${esc(r.names.join('、'))} · ${r.done} 组 · ${r.minutes} 分钟</span>`); }
+  (l && l.cardio || []).forEach((c) => rows.push(`<b>${esc(cardioName(c.kind))}</b> <span class="muted">${c.min} 分钟${c.km ? ` · ${c.km} 公里` : ''} · ${c.kcal} 千卡</span>`));
+  return `<div class="mc-detail"><h3>${fmtDate(d)} ${WEEKDAYS[weekdayIdx(d)]}</h3>${rows.length ? rows.map((r) => `<div class="mc-row">${r}</div>`).join('') : '<p class="muted">这天没有训练记录</p>'}</div>`;
+}
 
 function renderHistory() {
   const today = new Date();
@@ -12,7 +76,7 @@ function renderHistory() {
   if (!pos || !hist.length && !weeks.some((w) => w.app + w.offline)) {
     $('#view-history').innerHTML = `<div class="page-head"><h1>历史</h1></div><div class="card"><h2>还没有训练数据</h2>
       <p class="muted">完成第一次训练后，这里会显示力量曲线、训练量、完成日历和个人纪录。</p>
-      <p class="muted">如果之前已经在 App 外练过几周，可以在「挑战」里把那些训练标记为 📝 App 外完成。</p></div>${freeHistoryHtml()}${bodyweightCard(today)}`;
+      <p class="muted">如果之前已经在 App 外练过几周，可以在「挑战」里把那些训练标记为 📝 App 外完成。</p></div>${monthCalHtml()}${freeHistoryHtml()}${bodyweightCard(today)}`;
     return;
   }
   const nApp = hist.filter((h) => !h.offline).length, nOff = hist.length - nApp;
@@ -83,7 +147,7 @@ function renderHistory() {
       return { cls: 'none', tip: `${label} · 无训练` };
     }));
   }
-  let logHtml = `<div class="card"><h2>训练日历</h2>
+  let logHtml = monthCalHtml() + `<div class="card"><h2>完成热力图</h2>
     <div class="legend"><span><i class="lg s1"></i>App 完成</span><span><i class="lg s1soft"></i>App 外完成</span><span><i class="lg none"></i>未训练</span></div>
     ${calendarChart(cells, labels)}
     <h3>每周完成情况</h3>
@@ -125,6 +189,8 @@ function bindHistory() {
     const b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.lift) { statsLift = b.dataset.lift; render(); }
+    else if (b.dataset.calnav) { calMonth = Math.max(0, calMonth + Number(b.dataset.calnav)); calDay = null; render(); }
+    else if (b.dataset.calday) { calDay = calDay === b.dataset.calday ? null : b.dataset.calday; render(); }
     else if (b.dataset.xtab) { histTab = b.dataset.xtab; render(); }
     else if (b.dataset.act === 'bw') {
       const v = Number($('#bwInput').value);
