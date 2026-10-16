@@ -68,13 +68,16 @@ function dayDetailHtml(key) {
   return `<div class="mc-detail"><h3>${fmtDate(d)} ${WEEKDAYS[weekdayIdx(d)]}</h3>${rows.length ? rows.map((r) => `<div class="mc-row">${r}</div>`).join('') : '<p class="muted">这天没有训练记录</p>'}</div>`;
 }
 
+const histTabsHtml = () => `<div class="utabs">${[['log', '训练记录'], ['data', '数据分析'], ['photos', '照片墙']].map(([k, l]) => `<button data-xtab="${k}" class="${histTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+
 function renderHistory() {
   const today = new Date();
   const hist = trainingHistory(state);
   const weeks = weekly(state, today, hist);
   const pos = position(state, today);
   if (!pos || !hist.length && !weeks.some((w) => w.app + w.offline)) {
-    $('#view-history').innerHTML = `<div class="page-head"><h1>历史</h1></div><div class="card"><h2>还没有训练数据</h2>
+    if (histTab === 'photos') { $('#view-history').innerHTML = `<div class="page-head"><h1>历史</h1></div>${histTabsHtml()}${photoWallHtml()}`; return; }
+    $('#view-history').innerHTML = `<div class="page-head"><h1>历史</h1></div>${histTabsHtml()}<div class="card"><h2>还没有训练数据</h2>
       <p class="muted">完成第一次训练后，这里会显示力量曲线、训练量、完成日历和个人纪录。</p>
       <p class="muted">如果之前已经在 App 外练过几周，可以在「挑战」里把那些训练标记为 📝 App 外完成。</p></div>${monthCalHtml()}${freeHistoryHtml()}${bodyweightCard(today)}`;
     return;
@@ -168,8 +171,8 @@ function renderHistory() {
 
   html += bodyweightCard(today);
   $('#view-history').innerHTML = `<div class="page-head"><h1>历史</h1></div>
-    <div class="utabs">${[['log', '训练记录'], ['data', '数据分析']].map(([k, l]) => `<button data-xtab="${k}" class="${histTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
-    ${histTab === 'log' ? logHtml : html}`;
+    ${histTabsHtml()}
+    ${histTab === 'log' ? logHtml : histTab === 'photos' ? photoWallHtml() : html}`;
 }
 
 function bodyweightCard(today) {
@@ -192,6 +195,7 @@ function bindHistory() {
     else if (b.dataset.calnav) { calMonth = Math.max(0, calMonth + Number(b.dataset.calnav)); calDay = null; render(); }
     else if (b.dataset.calday) { calDay = calDay === b.dataset.calday ? null : b.dataset.calday; render(); }
     else if (b.dataset.xtab) { histTab = b.dataset.xtab; render(); }
+    else if (b.dataset.pw || b.dataset.pwid || b.dataset.pwpose) photoWallClick(b);
     else if (b.dataset.act === 'bw') {
       const v = Number($('#bwInput').value);
       if (!(v > 30 && v < 300)) return toast('请输入正确的体重');

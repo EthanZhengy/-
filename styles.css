@@ -828,3 +828,31 @@ input, select, textarea, button { font-family: inherit; }
 .rest-step .icon-round { font-size: 24px; width: 48px; height: 48px; }
 /* free workout: lift the rest timer above its bottom toolbar */
 body:has(.free-bar) .rest { z-index: 25; bottom: calc(84px + env(safe-area-inset-bottom)); }
+
+/* 主页 → 照片 grid */
+.cm-utabs { margin: 10px 0 6px; }
+.cm-pgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; border-radius: 12px; overflow: hidden; }
+.cm-ptile { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; cursor: pointer; background: var(--card-2); }
+
+/* 历史 → 照片墙 */
+.pw-actions { gap: 8px; margin: 6px 0 10px; }
+.pw-actions .btn { margin: 0; }
+.pw-hint { margin: 0 0 8px; font-weight: 700; color: var(--primary-ink); }
+.pw-month { margin: 16px 4px 8px; font-size: 15px; }
+.pw-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.pw-tile { position: relative; aspect-ratio: 3 / 4; border: 0; padding: 0; border-radius: 10px; overflow: hidden; background: var(--card-2); cursor: pointer; }
+.pw-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pw-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 6px 5px; font-size: 11px; line-height: 1.25; color: #fff; text-align: left; background: linear-gradient(transparent, rgba(0,0,0,.7)); }
+.pw-tile.sel { box-shadow: inset 0 0 0 3px var(--primary); }
+.pw-tile.sel img { opacity: .75; }
+.pw-num { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); color: var(--on-primary); font-style: normal; font-weight: 800; font-size: 13px; display: grid; place-items: center; }
+.pw-preview, .pw-big { width: 100%; max-height: 52vh; object-fit: contain; border-radius: 12px; background: #000; display: block; margin-bottom: 8px; }
+.pw-del { color: #e5484d; margin-top: 12px; }
+#pwCompare { position: fixed; inset: 0; z-index: 100; background: #000; color: #fff; display: flex; flex-direction: column; padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom)); }
+#pwCompare[hidden] { display: none; }
+.pwc-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 10px; }
+.pwc-pair { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; min-height: 0; }
+.pwc-pair figure { margin: 0; display: flex; flex-direction: column; min-height: 0; }
+.pwc-pair img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
+.pwc-pair figcaption { text-align: center; font-size: 13px; padding-top: 6px; }
+.cm-counts > * { white-space: nowrap; }

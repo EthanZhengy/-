@@ -304,7 +304,7 @@ async function deletePost(id) {
 }
 
 async function openUser(uid) {
-  if (!comm.viewing || comm.viewing.uid !== uid) comm.viewing = { uid, profile: null, posts: [] };
+  if (!comm.viewing || comm.viewing.uid !== uid) comm.viewing = { uid, profile: null, posts: [], tab: 'posts' };
   const v = comm.viewing;
   const pr = v.profile;
   const me = uid === cloud.user.id;
@@ -317,7 +317,9 @@ async function openUser(uid) {
           <button data-ulist="following" data-uid="${uid}"><b>${pr ? pr.following : '-'}</b>关注</button>
           <span><b>${pr && pr.likes != null ? pr.likes : '-'}</b>获赞</span></div></div>
       ${me ? '<button class="btn small ghost" data-stact="edit-profile">编辑资料</button>' : `<button class="cm-follow${comm.following.has(uid) ? ' on' : ''}" data-cmfollow="${uid}">${comm.following.has(uid) ? '已关注' : '＋ 关注'}</button>`}</div>
-    ${v.posts.length ? v.posts.map((p) => postHtml(p)).join('') : `<p class="muted center pad">${pr ? '还没有发过动态' : '加载中…'}</p>`}`, { type: 'cmuser', uid, reopen: () => openUser(uid) });
+    <div class="utabs cm-utabs">${[['posts', '动态'], ['photos', '照片']].map(([k, l]) => `<button data-utab="${k}" class="${v.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    ${v.tab === 'photos' ? userPhotosHtml(v, pr)
+    : v.posts.length ? v.posts.map((p) => postHtml(p)).join('') : `<p class="muted center pad">${pr ? '还没有发过动态' : '加载中…'}</p>`}`, { type: 'cmuser', uid, reopen: () => openUser(uid) });
   if (!pr) {
     const [a, b] = await Promise.all([
       cloud.client.rpc('community_profile', { uid }),
@@ -329,6 +331,13 @@ async function openUser(uid) {
     await loadLikes(v.posts.map((p) => p.id));
     if (sheetCtx && sheetCtx.type === 'cmuser' && sheetCtx.uid === uid) refreshSheet();
   }
+}
+
+/* 照片 tab: every photo from this person's posts, newest first; tap to open it full screen */
+function userPhotosHtml(v, pr) {
+  const tiles = v.posts.flatMap((p) => p.images.map((u, i) => `<img class="cm-ptile" src="${esc(u)}" alt="" loading="lazy" data-cmimg="${i}" data-post="${p.id}">`));
+  if (!tiles.length) return `<p class="muted center pad">${pr ? '还没有发过照片' : '加载中…'}</p>`;
+  return `<div class="cm-pgrid">${tiles.join('')}</div>`;
 }
 
 /* 粉丝 / 关注 lists */
@@ -384,6 +393,7 @@ function communityClick(b) {
   else if (ds.cmfollow) toggleFollow(ds.cmfollow);
   else if (ds.cmuser) openUser(ds.cmuser);
   else if (ds.ulist) openFollowList(ds.uid, ds.ulist);
+  else if (ds.utab && comm.viewing) { comm.viewing.tab = ds.utab; refreshSheet(); }
   else return false;
   return true;
 }
