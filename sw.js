@@ -1,7 +1,7 @@
-const CACHE = 'ianz-v19';
+const CACHE = 'ianz-v20';
 const ASSETS = ['./', 'index.html', 'styles.css', 'manifest.json', 'icons/icon.svg',
   'js/data.js', 'js/engine.js', 'js/stats.js', 'js/charts.js', 'js/core.js', 'js/vendor/supabase.js', 'js/config.js', 'js/cloud.js', 'js/wizard.js',
-  'js/home.js', 'js/free.js', 'js/challenge.js', 'js/library.js', 'js/history.js', 'js/me.js', 'js/social.js', 'js/community.js', 'js/market.js', 'js/app.js'];
+  'js/home.js', 'js/free.js', 'js/challenge.js', 'js/library.js', 'js/history.js', 'js/me.js', 'js/social.js', 'js/community.js', 'js/market.js', 'js/stories.js', 'js/app.js'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));

@@ -56,7 +56,7 @@ async function loadCommunity(append = false) {
     const rows = (data || []).filter((p) => !blocked().includes(p.user_id));
     comm.posts = append ? comm.posts.concat(rows) : rows;
     comm.more = (data || []).length === PAGE;
-    await loadLikes(rows.map((p) => p.id));
+    await Promise.all([loadLikes(rows.map((p) => p.id)), fetchPeople(rows.map((p) => p.user_id).concat(uid))]);
     comm.loaded = true;
   } catch (err) {
     comm.error = isMissingTable(err) ? 'need-sql' : err.message || String(err);
@@ -69,7 +69,7 @@ async function loadLikes(ids) {
   const { data } = await cloud.client.from('post_likes').select('post_id').eq('user_id', cloud.user.id).in('post_id', ids);
   (data || []).forEach((x) => comm.liked.add(x.post_id));
 }
-function reloadCommunity() { comm.loaded = false; comm.posts = []; loadCommunity(); render(); }
+function reloadCommunity() { comm.loaded = false; comm.posts = []; story.loaded = false; loadCommunity(); render(); }
 
 async function toggleLike(id) {
   const p = comm.posts.find((x) => x.id === id) || (comm.viewing && comm.viewing.posts.find((x) => x.id === id));
@@ -134,7 +134,7 @@ function postHtml(p, opts = {}) {
   const imgs = n ? `<div class="cm-imgs n${Math.min(n, 3)}${n === 4 ? ' n4' : ''}">${p.images.map((u, i) => `<img src="${esc(u)}" alt="" loading="lazy" data-cmimg="${i}" data-post="${p.id}">`).join('')}</div>` : '';
   return `<article class="cm-post">
     <div class="cm-head"><button class="cm-av" data-cmuser="${p.user_id}">${avatarHtml(p.user_id, name, 'sm')}</button>
-      <div class="grow"><button class="cm-name" data-cmuser="${p.user_id}">${esc(name)}${mine ? ' <span class="muted small">（我）</span>' : ''}</button><div class="muted small">${relTime(p.created_at)}</div></div>
+      <div class="grow"><button class="cm-name" data-cmuser="${p.user_id}">${esc(name)}${mine ? ' <span class="muted small">（我）</span>' : ''}</button> ${statusChip(p.user_id)}<div class="muted small">${relTime(p.created_at)}</div></div>
       ${mine ? '' : `<button class="cm-follow${comm.following.has(p.user_id) ? ' on' : ''}" data-cmfollow="${p.user_id}">${comm.following.has(p.user_id) ? '已关注' : '＋ 关注'}</button>`}</div>
     ${p.body ? `<div class="cm-body"${opts.full ? '' : ` data-cmopen="${p.id}"`}>${richText(p.body)}</div>` : ''}
     ${imgs}
@@ -167,6 +167,7 @@ function communityHtml() {
       + (comm.more ? `<button class="btn ghost block" data-cmact="more">${comm.loading ? '加载中…' : '加载更多'}</button>` : '<p class="muted center pad">- 没有更多了 -</p>');
   }
   return `<div class="row between"><h1 class="fr-h1">社区</h1><button class="icon-round" data-cmact="reload" aria-label="刷新">↻</button></div>
+    ${myCardHtml()}${storiesRowHtml()}
     ${tabs}${topics}${topicHead}${list}
     <button class="cm-compose" data-cmact="compose" aria-label="发动态">✎</button>`;
 }
@@ -184,7 +185,7 @@ function openCompose(prefill = '') {
     <div class="chips">${TOPIC_SUGGEST.map((x) => `<button class="chip" data-cmins="#${x}#">#${x}#</button>`).join('')}</div>
     ${res ? '<button class="btn ghost block" data-cmact="insert-workout">📋 插入今天的训练</button>' : ''}
     <button class="btn block big" data-cmact="publish" id="cmPublish">发布</button>
-    <p class="muted small">所有登录用户都能看到你的动态。请勿发布他人隐私或违规内容。</p>`, { type: 'cmnew', reopen: () => openCompose() });
+    <p class="muted small">所有登录用户都能看到你的动态。请勿发布他人隐私或违规内容。发布即表示同意<a href="terms.html" target="_blank">《用户协议》</a>。</p>`, { type: 'cmnew', reopen: () => openCompose() });
 }
 function readDraft() { if (comm.draft && $('#cmText')) comm.draft.text = $('#cmText').value; }
 function todayWorkoutText() {
@@ -234,6 +235,7 @@ async function openPost(id) {
   if (!cs) {
     const { data, error } = await cloud.client.from('post_comments').select('*').eq('post_id', id).order('created_at', { ascending: true });
     comm.comments[id] = error ? [] : (data || []).filter((c) => !blocked().includes(c.user_id));
+    await fetchPeople(comm.comments[id].map((c) => c.user_id));
     if (sheetCtx && sheetCtx.type === 'cmpost' && sheetCtx.id === id) refreshSheet();
   }
 }
@@ -283,10 +285,12 @@ async function openUser(uid) {
   const v = comm.viewing;
   const pr = v.profile;
   const me = uid === cloud.user.id;
-  openSheet(pr ? pr.name || '健身er' : '主页', `<div class="cm-profile">${avatarHtml(uid, pr ? pr.name : '?')}
-      <div class="grow"><b>${esc(pr ? pr.name || '健身er' : '')}</b>
+  const live = story.list.some((s) => s.user_id === uid);
+  openSheet(pr ? pr.name || '健身er' : '主页', `<div class="cm-profile">${live ? `<button class="st-ring" data-st="${uid}">${avatarHtml(uid, pr ? pr.name : '?', 'lg')}</button>` : avatarHtml(uid, pr ? pr.name : '?', 'lg')}
+      <div class="grow"><b>${esc(pr ? pr.name || '健身er' : '')}</b> ${statusChip(uid)}
+        ${pr && pr.bio ? `<div class="muted small">${esc(pr.bio)}</div>` : ''}
         <div class="cm-counts"><span><b>${pr ? pr.posts : '-'}</b>动态</span><span><b>${pr ? pr.followers : '-'}</b>粉丝</span><span><b>${pr ? pr.following : '-'}</b>关注</span></div></div>
-      ${me ? '' : `<button class="cm-follow${comm.following.has(uid) ? ' on' : ''}" data-cmfollow="${uid}">${comm.following.has(uid) ? '已关注' : '＋ 关注'}</button>`}</div>
+      ${me ? '<button class="btn small ghost" data-stact="edit-profile">编辑资料</button>' : `<button class="cm-follow${comm.following.has(uid) ? ' on' : ''}" data-cmfollow="${uid}">${comm.following.has(uid) ? '已关注' : '＋ 关注'}</button>`}</div>
     ${v.posts.length ? v.posts.map((p) => postHtml(p)).join('') : `<p class="muted center pad">${pr ? '还没有发过动态' : '加载中…'}</p>`}`, { type: 'cmuser', uid, reopen: () => openUser(uid) });
   if (!pr) {
     const [a, b] = await Promise.all([
@@ -294,6 +298,7 @@ async function openUser(uid) {
       cloud.client.from('posts').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(30),
     ]);
     v.profile = (a.data && a.data[0]) || { name: '', posts: 0, followers: 0, following: 0 };
+    if (a.data && a.data[0]) PEOPLE[uid] = { ...(PEOPLE[uid] || {}), ...a.data[0] };
     v.posts = b.data || [];
     await loadLikes(v.posts.map((p) => p.id));
     if (sheetCtx && sheetCtx.type === 'cmuser' && sheetCtx.uid === uid) refreshSheet();
@@ -366,12 +371,7 @@ function bindCommunity() {
     if (sheetCtx.type === 'cmmore') {
       const id = sheetCtx.id, p = findPost(id);
       if (ds.cmdel) return deletePost(id);
-      if (ds.cmreport) {
-        const reason = prompt('举报原因（可不填）：', '') ?? null;
-        if (reason === null) return;
-        cloud.client.from('post_reports').insert({ post_id: id, user_id: cloud.user.id, reason }).then(() => toast('已举报，感谢反馈'));
-        return closeSheet();
-      }
+      if (ds.cmreport) return openReport('post', id);
       if (ds.cmblock && confirm(`屏蔽 ${p.author_name || '这个人'}？`)) {
         state.blocked = [...new Set(blocked().concat(p.user_id))];
         save();

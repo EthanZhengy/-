@@ -1,6 +1,8 @@
 -- Ianz Fitness: 大神方案 (training plans shared by users, with likes, favourites, "used" counts and tips).
 -- Run once in Supabase → SQL Editor, after friends.sql and community.sql. Safe to run again.
 -- Tips (打赏) show the author's own WeChat / Alipay payment QR code; the app never handles money.
+-- A tip code reported as fraudulent by 3 different users is hidden automatically (plans.tip_hidden);
+-- review it in Table Editor → plan_reports and set tip_hidden back to false if it is fine.
 
 create table if not exists public.plans (
   id          uuid primary key default gen_random_uuid(),
@@ -16,6 +18,7 @@ create table if not exists public.plans (
   use_count   int not null default 0,
   created_at  timestamptz not null default now()
 );
+alter table public.plans add column if not exists tip_hidden boolean not null default false;
 create index if not exists plans_created_idx on public.plans (created_at desc);
 create index if not exists plans_tags_idx on public.plans using gin (tags);
 
@@ -51,7 +54,7 @@ language plpgsql security definer set search_path = public as $$
 begin
   new.user_id := auth.uid();
   new.author_name := coalesce((select name from profiles where user_id = auth.uid()), '');
-  new.like_count := 0; new.fav_count := 0; new.use_count := 0;
+  new.like_count := 0; new.fav_count := 0; new.use_count := 0; new.tip_hidden := false;
   new.created_at := now();
   if new.tip_image is not null and new.tip_image not like '%/storage/v1/object/public/post-images/' || auth.uid()::text || '/%' then
     raise exception 'invalid tip image url';
@@ -115,3 +118,16 @@ create policy "plan uses: add" on public.plan_uses for insert to authenticated w
 
 drop policy if exists "plan reports: file" on public.plan_reports;
 create policy "plan reports: file" on public.plan_reports for insert to authenticated with check (user_id = auth.uid());
+
+-- Hide a tip code after 3 different users report it as fake / fraudulent
+create or replace function public.plan_report_check() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.reason like '虚假/诈骗收款码%' and
+     (select count(*) from plan_reports where plan_id = new.plan_id and reason like '虚假/诈骗收款码%') >= 3 then
+    update plans set tip_hidden = true where id = new.plan_id;
+  end if;
+  return null;
+end $$;
+drop trigger if exists plan_report_check on public.plan_reports;
+create trigger plan_report_check after insert on public.plan_reports for each row execute function public.plan_report_check();

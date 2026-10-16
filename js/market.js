@@ -34,6 +34,7 @@ async function loadMarket() {
     const { data, error } = await q.limit(50);
     if (error) throw error;
     mk.plans = (data || []).filter((p) => !(state.blocked || []).includes(p.user_id));
+    await fetchPeople(mk.plans.map((p) => p.user_id));
     mk.loaded = true;
   } catch (err) {
     mk.error = isMissingTable(err) ? 'need-sql' : err.message || String(err);
@@ -99,7 +100,7 @@ function openPlan(id) {
     <div class="mk-actions">
       <button class="${mk.liked.has(id) ? 'on' : ''}" data-mklike="${id}">👍<span>${mk.liked.has(id) ? '已赞' : '点赞'} ${p.like_count}</span></button>
       <button class="${mk.faved.has(id) ? 'on' : ''}" data-mkfav="${id}">⭐<span>${mk.faved.has(id) ? '已收藏' : '收藏'} ${p.fav_count}</span></button>
-      <button data-mktip="${id}">🧧<span>打赏</span></button>
+      <button data-mktip="${id}"${p.tip_hidden ? ' class="dim"' : ''}>🧧<span>${p.tip_hidden ? '审核中' : '打赏'}</span></button>
       <button data-mkmore="${id}">⋯<span>更多</span></button></div>
     <button class="btn block big" data-mkuse="${id}">使用这个方案</button>
     <p class="muted small">使用后，方案里的训练日会加到你当前计划（${esc(progOf().name)}）的「训练模板」里，作为可选的自定义训练日。</p>`, { type: 'mkplan', id, reopen: () => openPlan(id) });
@@ -119,7 +120,20 @@ async function toggleRel(table, set, field, id) {
 
 function showTip(id) {
   const p = mk.plans.find((x) => x.id === id);
+  if (p.tip_hidden) return toast('这个收款码被多人举报，已暂时隐藏，等待审核');
   if (!p.tip_image) return toast('作者还没有设置收款码，点个赞、收藏一下支持 TA 吧');
+  openSheet('打赏前请注意', `<ul class="tips">
+      <li>打赏是你对作者的<b>自愿赠与</b>，钱直接付到作者的微信 / 支付宝，App 不经手、不抽成。</li>
+      <li>作者对你的任何承诺（如私教、答疑、额外资料）都与 App 无关，App 不提供担保，<b>也无法帮你退款</b>。</li>
+      <li>谨防诈骗：不要因为「付费解锁」「保证效果」之类的说法付款；发现可疑收款码请点「更多 → 举报」。</li>
+      <li>未成年人请在监护人同意后再打赏。</li></ul>
+    <p class="muted small">继续即表示你已阅读并同意<a href="terms.html" target="_blank">《用户协议》</a>。</p>
+    <button class="btn block" data-mktipgo="${id}">我知道了，查看收款码</button>
+    <button class="btn ghost block" data-mkback="${id}">再想想</button>`, { type: 'mkplan', id, reopen: () => showTip(id) });
+}
+function showTipImage(id) {
+  const p = mk.plans.find((x) => x.id === id);
+  closeSheet();
   let el = $('#cmViewer');
   if (!el) { el = document.createElement('div'); el.id = 'cmViewer'; document.body.appendChild(el); }
   el.innerHTML = `<div class="mk-tip"><b>打赏 ${esc(p.author_name || '作者')}</b><img src="${esc(p.tip_image)}" alt="收款码">
@@ -170,7 +184,7 @@ function openPublishPlan(preselect) {
       <label class="btn small ghost">${d.tipUrl || (d.useSavedTip && state.tipImage) ? '更换' : '上传微信 / 支付宝收款码'}<input type="file" id="mkTip" accept="image/*" hidden></label>
       ${d.tipUrl || (d.useSavedTip && state.tipImage) ? '<button class="link" data-mkp="notip">不设置</button>' : ''}</div>
     <button class="btn block big" data-mkp="submit" id="mkSubmit">发布</button>
-    <p class="muted small">方案公开给所有登录用户。只会分享动作、组数和次数，不包含你的重量和身体数据。</p>`, { type: 'mkpub', reopen: () => openPublishPlan() });
+    <p class="muted small">方案公开给所有登录用户。只会分享动作、组数和次数，不包含你的重量和身体数据。收款码只能是你本人的，发布即表示同意<a href="terms.html" target="_blank">《用户协议》</a>。</p>`, { type: 'mkpub', reopen: () => openPublishPlan() });
 }
 function readPub() {
   if (!mk.pub || !$('#mkTitle')) return;
@@ -229,6 +243,8 @@ function bindMarket() {
       if (ds.mklike) toggleRel('plan_likes', mk.liked, 'like_count', ds.mklike);
       else if (ds.mkfav) toggleRel('plan_favs', mk.faved, 'fav_count', ds.mkfav);
       else if (ds.mktip) showTip(ds.mktip);
+      else if (ds.mktipgo) showTipImage(ds.mktipgo);
+      else if (ds.mkback) openPlan(ds.mkback);
       else if (ds.mkuse) usePlan(ds.mkuse);
       else if (ds.cmfollow) toggleFollow(ds.cmfollow).then(() => refreshSheet());
       else if (ds.cmuser) openUser(ds.cmuser);
@@ -240,11 +256,7 @@ function bindMarket() {
             if (error) return toast(`删除失败：${error.message}`);
             mk.plans = mk.plans.filter((x) => x.id !== p.id); closeSheet(); render(); toast('已删除');
           });
-        } else {
-          const reason = prompt('举报这个方案的原因（可不填）：', '');
-          if (reason === null) return;
-          cloud.client.from('plan_reports').insert({ plan_id: p.id, user_id: cloud.user.id, reason }).then(() => toast('已举报，感谢反馈'));
-        }
+        } else openReport('plan', p.id);
       }
       return;
     }

@@ -12,7 +12,10 @@ const socialReady = () => !!(cloud.client && cloud.user);
 const myName = () => (state.profile.name || (cloud.user && cloud.user.user_metadata && cloud.user.user_metadata.full_name) || (cloud.user && cloud.user.email || '').split('@')[0] || '我').slice(0, 30);
 const inviteLink = () => `${location.origin}${location.pathname}?add=${social.me ? social.me.friend_code : ''}`;
 const AVATAR_COLORS = ['#1677ff', '#eb6834', '#1baf7a', '#6250d6', '#e34948', '#c98500'];
+const PEOPLE = {}; // public profile cards (name, photo, bio, status) — filled by stories.js
 function avatarHtml(id, name, cls = '') {
+  const photo = PEOPLE[id] && PEOPLE[id].avatar_url;
+  if (photo) return `<span class="f-avatar photo ${cls}"><img src="${esc(photo)}" alt="" loading="lazy"></span>`;
   const c = AVATAR_COLORS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % AVATAR_COLORS.length];
   return `<span class="f-avatar ${cls}" style="background:${c}">${esc((name || '?').slice(0, 1))}</span>`;
 }
