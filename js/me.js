@@ -166,6 +166,8 @@ function renderMe() {
   const today = new Date();
   const pos = position(state, today);
   const n = trainingHistory(state).length;
+  const me = cloud.user && PEOPLE[cloud.user.id];
+  if (cloud.user && !me && !meProfileTried) { meProfileTried = true; fetchPeople([cloud.user.id]).then(() => { if (currentView === 'me') render(); }); }
   const row = (k, extra = '') => `<button class="menu-row" data-me-sub="${k}"><span class="mi">${ICONS[ME_PAGES[k][1]]}</span><span class="grow">${ME_PAGES[k][0]}</span>${extra ? `<span class="muted">${extra}</span>` : ''}${ICONS.chevron}</button>`;
   let banner = '';
   if (cloudEnabled() && !cloud.user) {
@@ -174,17 +176,20 @@ function renderMe() {
     banner = `<button class="banner on" data-me-sub="account"><b>☁️ 云端同步已开启</b><span>${esc(syncText()) || '已登录'} ›</span></button>`;
   }
   $('#view-me').innerHTML = `
-    <div class="me-top"><div class="avatar big">${esc((p.name || '我').slice(0, 1))}</div>
+    <div class="me-top">${me && me.avatar_url ? `<div class="avatar big photo"><img src="${esc(me.avatar_url)}" alt=""></div>` : `<div class="avatar big">${esc((p.name || '我').slice(0, 1))}</div>`}
       <div class="grow"><div class="row"><h1 class="me-name">${p.name ? esc(p.name) : '未设置昵称'}</h1><button class="pill-btn" data-act="edit">修改信息</button></div>
+        ${me && (me.status || me.bio) ? `<div class="me-status">${me.status ? `<span class="cm-status">${esc(me.status)}</span> ` : ''}<span class="muted small">${esc(me.bio || '')}</span></div>` : ''}
+        ${cloud.user ? '<button class="link small" data-act="me-profile">编辑头像、签名和状态</button>' : ''}
         <div class="me-id">${cloud.user ? `<span class="ok">✓ 已登录</span> ${esc(accountLabel())}` : cloudEnabled() ? '未登录 · 数据仅保存在本机' : '本机模式'}</div></div></div>
     ${banner}
-    <div class="me-stats"><div><b>${n}</b><span>累计训练</span></div><div><b>${pos ? `${pos.week}<small>/12</small>` : '—'}</b><span>当前周</span></div><div><b>${p.weight}<small>kg</small></b><span>体重</span></div></div>
+    <div class="me-stats"><div><b>${n}</b><span>累计训练</span></div><div><b>${pos ? `${pos.week}<small>/${progOf().weeks}</small>` : '—'}</b><span>当前周</span></div><div><b>${p.weight}<small>kg</small></b><span>体重</span></div></div>
     <div class="menu">${row('body', `${p.height}cm · ${GOALS[p.goal].label}`)}${row('nutrition')}${row('training')}${row('rm')}</div>
     <div class="menu">${row('reminders', state.reminders.enabled ? '已开启' : '')}${row('data')}${row('install')}</div>
     ${cloud.user ? `<div class="menu">${row('account')}<button class="menu-row danger" data-act="logout"><span class="mi">${ICONS.logout}</span><span class="grow">退出登录</span></button></div>` : ''}
     <p class="muted center pad">Ianz Fitness · 版本 ${APP_VERSION} · <a href="plans.html">训练计划介绍</a> · <a href="privacy.html">隐私政策</a> · <a href="terms.html">用户协议</a></p>`;
 }
 
+let meProfileTried = false;
 function bindMe() {
   const root = $('#view-me');
   root.addEventListener('click', (e) => {
@@ -192,6 +197,7 @@ function bindMe() {
     if (!b) return;
     if (b.dataset.meSub) { meSub = b.dataset.meSub; render(); window.scrollTo(0, 0); }
     else if (b.dataset.act === 'me-back') { meSub = null; render(); }
+    else if (b.dataset.act === 'me-profile') { profDraft = null; openProfileEdit(); }
   });
   root.addEventListener('input', (e) => {
     if (e.target.id !== 'rmW' && e.target.id !== 'rmR') return;

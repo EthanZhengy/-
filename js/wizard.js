@@ -14,7 +14,8 @@ function startWizard(fromSettings, program, jump) {
   const draft = clone(state);
   const inputs = {};
   LIFTS.forEach((l) => (inputs[l] = { w: draft.lifts[l].oneRM || '', reps: 1 }));
-  wiz = { step: 0, draft, inputs, startOpt: 'this', startWeek: 1, doneNow: [] };
+  // edit: an existing user changing settings — pick any section from the tabs, then 完成 / 取消
+  wiz = { step: 0, draft, inputs, startOpt: 'this', startWeek: 1, doneNow: [], edit: !!state.onboarded };
   setDraftProgram(program || draft.program || '531');
   const resume = !state.onboarded && state.wizStep > 0 ? Math.min(state.wizStep, STEPS.length - 1) : 0;
   wiz.step = jump ? STEP_IDS.indexOf(jump) : fromSettings ? 1 : resume;
@@ -196,6 +197,14 @@ function renderWizard() {
     }
   }
   const last = wiz.step === STEPS.length - 1;
+  if (wiz.edit) {
+    $('#view-wizard').innerHTML = `
+      <div class="wiz-edit-head"><h1>修改信息</h1><span class="muted small">点上面的分类直接修改，改完点「完成」保存</span></div>
+      <nav class="wiz-tabs">${STEPS.filter(([id]) => id !== 'welcome').map(([id, label]) => `<button data-wtab="${id}" class="${stepId() === id ? 'on' : ''}">${id === 'summary' ? '总览' : label}</button>`).join('')}</nav>
+      <div class="wiz-body">${body}</div>
+      <div class="wiz-nav sticky"><button class="btn ghost" data-wiz="cancel">取消</button><button class="btn" data-wiz="save">完成</button></div>`;
+    return;
+  }
   $('#view-wizard').innerHTML = `
     <div class="steps">${STEPS.map((s, i) => `<span class="${i <= wiz.step ? 'on' : ''}"></span>`).join('')}</div>
     <div id="wizAccount">${wizAccountHtml()}</div>
@@ -235,9 +244,8 @@ function computeStart() {
   return dateKey(mon);
 }
 
-function wizardValidate() {
+function wizardValidate(id = stepId()) {
   const d = wiz.draft;
-  const id = stepId();
   if (id === 'basic') {
     const p = d.profile;
     if (!(p.age > 10 && p.height > 100 && p.weight > 30)) return '请填写正确的年龄、身高和体重';
@@ -259,6 +267,16 @@ function bindWizard() {
     const ds = t.dataset;
     if (ds.wiz === 'back') wiz.step--;
     else if (ds.wiz === 'cancel') { wiz = null; render(); return; }
+    else if (ds.wtab) {
+      if (stepId() === 'body') fixVariants(d);
+      wiz.step = STEP_IDS.indexOf(ds.wtab);
+      window.scrollTo(0, 0);
+    } else if (ds.wiz === 'save') {
+      fixVariants(d);
+      const bad = STEP_IDS.find((id) => wizardValidate(id));
+      if (bad) { const err = wizardValidate(bad); wiz.step = STEP_IDS.indexOf(bad); render(); return toast(err); }
+      return finishWizard();
+    }
     else if (ds.wiz === 'next') {
       const err = wizardValidate();
       if (err) return toast(err);
@@ -348,6 +366,7 @@ function persistWizard() {
 
 function finishWizard() {
   const d = wiz.draft;
+  const editing = wiz.edit;
   const oldP = state.program || '531';
   const newP = d.program || '531';
   const newStart = computeStart();
@@ -375,9 +394,10 @@ function finishWizard() {
   if (curWeek >= 0) wiz.doneNow.forEach((sid) => markOffline(state, curWeek, sid, today));
   wiz = null;
   save();
-  currentView = 'home';
+  if (!editing || oldP !== newP) currentView = 'home';
   scheduleReminders();
   render();
-  toast(oldP !== newP ? `已切换到「${PROGRAMS[newP].name}」` : '计划已生成，开始训练吧！');
+  toast(oldP !== newP ? `已切换到「${PROGRAMS[newP].name}」` : editing ? '已保存' : '计划已生成，开始训练吧！');
+  if (typeof syncPublicProfile === 'function') syncPublicProfile();
   if (typeof handlePendingInvite === 'function') handlePendingInvite();
 }

@@ -82,6 +82,16 @@ async function saveProfile() {
   }
 }
 
+/** After the name changes in 我的 → 修改信息, update the public profile too. */
+async function syncPublicProfile() {
+  if (!socialReady()) return;
+  try {
+    await ensureProfile(); // renames the profile when state.profile.name changed
+    const uid = cloud.user.id;
+    if (PEOPLE[uid]) PEOPLE[uid].name = myName();
+  } catch { /* offline or tables missing: synced next time */ }
+}
+
 /* ---------- stories ---------- */
 async function loadStories() {
   if (!socialReady() || story.loading) return;
