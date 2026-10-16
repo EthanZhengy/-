@@ -370,7 +370,8 @@ function blockHtml(s, b, log, sid, open) {
       ${b.ex && b.ex.cue ? `<p class="cue">${esc(b.ex.cue)}</p>` : ''}${b.note ? `<p class="cue">${esc(b.note)}</p>` : ''}</details>`;
   }
   rows.forEach((r, i) => { html += setRowHtml(b, rows, r, i, ticks[i], key(b.key)); });
-  html += `<div class="set-actions"><button data-addset="${b.key}">＋ 加一组</button>${rows.length > 1 ? `<button data-delset="${b.key}">－ 删一组</button>` : ''}${b.extra ? `<button class="danger" data-delex="${b.key}">移除动作</button>` : b.tpl ? `<button data-tploff="${b.key}">今天不练</button>` : ''}</div>`;
+  html += `<div class="set-actions"><button data-addset="${b.key}">＋ 加一组</button>${rows.length > 1 ? `<button data-delset="${b.key}">－ 删一组</button>` : ''}<button data-exhist="${b.key}">动作历史</button></div>
+    ${b.extra ? `<div class="set-actions"><button class="danger" data-delex="${b.key}">移除动作</button></div>` : b.tpl ? `<div class="set-actions"><button data-tploff="${b.key}">今天不练</button></div>` : ''}`;
   if (b.test) {
     const val = state.tests[s.pos.cycle] && state.tests[s.pos.cycle][b.lift];
     html += `<label>测得的新 1RM (kg)</label><input type="number" inputmode="decimal" step="0.5" data-test="${b.lift}" value="${val ?? ''}" placeholder="最后一次标准完成的重量">
@@ -577,6 +578,12 @@ function bindWorkout() {
       delete log.sx[`${sid}:${ds.tploff}`]; delete log.sets[`${sid}:${ds.tploff}`];
       toast('今天不练这个动作，模板里仍然保留');
     } else if (ds.restcfg) return openRestPicker(ds.restcfg);
+    else if (ds.exhist) {
+      const bb = blk(ds.exhist);
+      if (!bb) return;
+      exh.tab = 'hist';
+      return openExHistory(blockName(bb), (bb.ex && bb.ex.img) || bb.img, (bb.ex && bb.ex.cue) || bb.note);
+    }
     else if (ds.act === 'add-extra') return openPicker();
     else if (ds.swap) { swapQ = ''; return openSwap(ds.swap); }
     else if (ds.act === 'done') {
