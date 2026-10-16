@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.14.2';
+const APP_VERSION = '1.15.0';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -20,7 +20,7 @@ function defaultState() {
     },
     plateInc: 2.5,
     equipment: GYM_EQUIP.slice(),
-    injuries: [], favorites: [], excluded: [], customEx: [], lastW: {}, restPref: {}, tplEx: {}, tplLastPick: {}, blocked: [], customDays: {}, seenStories: [],
+    injuries: [], favorites: [], excluded: [], customEx: [], lastW: {}, restPref: {}, tplEx: {}, tplLastPick: {}, blocked: [], customDays: {}, seenStories: [], appearance: { mode: 'dark', accent: 'volt' },
     schedule: [0, 1, 3, 4],
     trainTime: '18:30',
     startDate: dateKey(mondayOf(new Date())),
@@ -44,6 +44,21 @@ function loadState() {
   } catch { return defaultState(); }
 }
 let state = loadState();
+
+/** 外观: dark / light / follow the system, plus an accent color. Mirrored to localStorage for the pre-paint script in index.html. */
+function applyTheme() {
+  const a = state.appearance || {};
+  const mode = a.mode || 'dark';
+  const dark = mode === 'auto' ? matchMedia('(prefers-color-scheme: dark)').matches : mode === 'dark';
+  const root = document.documentElement;
+  root.dataset.theme = dark ? 'dark' : 'light';
+  root.dataset.accent = a.accent || 'volt';
+  const meta = document.querySelector('meta[name=theme-color]');
+  if (meta) meta.content = dark ? '#0d0e10' : '#f1f2ee';
+  try { localStorage.setItem('ianz-theme', JSON.stringify({ mode, accent: a.accent || 'volt' })); } catch { /* private mode */ }
+}
+applyTheme();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if ((state.appearance || {}).mode === 'auto') applyTheme(); });
 /** Persist locally, then (when signed in) sync to the cloud shortly after. */
 function save() {
   state.meta.updatedAt = Date.now();

@@ -83,7 +83,7 @@ function freeAction(act, t) {
     f.done = true;
     f.result = { ...r, minutes: Math.round(f.elapsed / 60000), title: f.title || '自由训练' };
     stopRest();
-    toast('💪 训练完成！');
+    toast(`💪 ${doneLine()}`);
   } else if (act === 'resume') { f.done = false; delete f.result; }
   else if (act === 'title') {
     return openSheet('训练标题', `<input id="ftInput" maxlength="30" placeholder="如：胸 + 三头" value="${esc(f.title)}">

@@ -96,12 +96,13 @@ function renderHome() {
 </div>`;
   html += dietCard(t);
   html += `<div class="utabs">${[['today', '今日训练'], ['week', '本周安排'], ['food', '饮食建议']].map(([k, l]) => `<button data-htab="${k}" class="${homeTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-  if (homeTab === 'today') html += homeFreeHtml(t) + homeToday(t);
+  if (homeTab === 'today') html += homeFreeHtml(t) + quoteCardHtml() + homeToday(t);
   else if (homeTab === 'week') html += homeWeek(t);
   else html += homeFood(t);
   $('#view-home').innerHTML = html;
 }
 
+const DAY_EN = { press: 'PRESS DAY', deadlift: 'DEADLIFT DAY', bench: 'BENCH DAY', squat: 'SQUAT DAY', mike1: 'PUSH DAY · 1', mike2: 'PUSH DAY · 2', mikeTest: 'TEST DAY' };
 function homeToday(t) {
   if (!t.pos) {
     return `<div class="card hero"><div class="muted">计划还没开始</div><h2>${fmtDate(parseKey(state.startDate))}开始第 1 周</h2>
@@ -137,7 +138,7 @@ function homeToday(t) {
   </div>`;
 
   if (sid === 'rest') {
-    html += `<div class="card"><h2>休息日 🧘</h2><ul class="tips">
+    html += `<div class="card"><h2>休息日 🧘</h2>${quotesOn() ? `<p class="rest-line">${esc(pickLine(REST_LINES))}</p>` : ''}<ul class="tips">
       <li>轻松散步 20–40 分钟，促进恢复</li><li>髋、胸椎、肩部拉伸 10 分钟</li><li>早点睡，睡眠是最好的恢复</li></ul></div>`;
     return html;
   }
@@ -147,6 +148,7 @@ function homeToday(t) {
   const total = s.blocks.reduce((a, b) => a + nSets(b), 0);
   const doneSets = s.blocks.reduce((a, b) => a + ticks(b.key), 0);
   html += `<div class="card session">
+    <div class="sess-en">${DAY_EN[sid] || (isCustomDay(sid) ? 'BONUS DAY' : 'TRAINING DAY')}</div>
     <div class="row between"><h2>${sessionName(sid, pos.week)}</h2>${doneToday ? BADGE.app : `<span class="muted">${doneSets}/${total} 组</span>`}</div>
     ${s.blocks.map((b) => `<div class="srow"><span class="dot${ticks(b.key) >= nSets(b) ? ' on' : ''}"></span>
       <div class="grow"><div>${esc(b.title.replace(/^(主项|第二主项|辅助|激活|五选一|自选|模板|拉类动作|腹肌核心|上肢辅助|下肢辅助) · /, ''))}</div>
@@ -460,7 +462,7 @@ function bindWorkout() {
     } else if (ds.act === 'done') {
       log.session = sid; log.done = true; log.offline = false;
       stopRest();
-      toast('💪 训练完成！记得吃练后餐');
+      toast(`💪 ${doneLine()}`);
     } else if (ds.act === 'undo-done') log.done = false;
     else return;
     snapshot(t.date, log);

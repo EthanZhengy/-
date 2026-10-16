@@ -154,6 +154,7 @@ const ME_PAGES = {
   data: ['数据备份', 'data', () => dataHtml()],
   install: ['安装到手机', 'phone', () => installHtml()],
   account: ['账号与同步', 'cloud', () => accountCard()],
+  look: ['外观与语录', 'gear', () => lookHtml()],
 };
 
 function renderMe() {
@@ -184,7 +185,7 @@ function renderMe() {
     ${banner}
     <div class="me-stats"><div><b>${n}</b><span>累计训练</span></div><div><b>${pos ? `${pos.week}<small>/${progOf().weeks}</small>` : '—'}</b><span>当前周</span></div><div><b>${p.weight}<small>kg</small></b><span>体重</span></div></div>
     <div class="menu">${row('body', `${p.height}cm · ${GOALS[p.goal].label}`)}${row('nutrition')}${row('training')}${row('rm')}</div>
-    <div class="menu">${row('reminders', state.reminders.enabled ? '已开启' : '')}${row('data')}${row('install')}</div>
+    <div class="menu">${row('look', `${{ dark: '暗色调', light: '亮色调', auto: '跟随系统' }[(state.appearance || {}).mode || 'dark']}${quotesOn() ? '' : ' · 语录已关'}`)}${row('reminders', state.reminders.enabled ? '已开启' : '')}${row('data')}${row('install')}</div>
     ${cloud.user ? `<div class="menu">${row('account')}<button class="menu-row danger" data-act="logout"><span class="mi">${ICONS.logout}</span><span class="grow">退出登录</span></button></div>` : ''}
     <p class="muted center pad">Ianz Fitness · 版本 ${APP_VERSION} · <a href="plans.html">训练计划介绍</a> · <a href="privacy.html">隐私政策</a> · <a href="terms.html">用户协议</a></p>`;
 }

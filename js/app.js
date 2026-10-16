@@ -6,6 +6,7 @@ const TABS = [['home', '训练', 'train'], ['challenge', '挑战', 'challenge'],
 const RENDER = { home: renderHome, challenge: renderChallenge, library: renderLibrary, history: renderHistory, me: renderMe, workout: renderWorkout, friends: renderFriends, market: renderMarket };
 
 function render() {
+  applyTheme();
   if (!state.onboarded && !wiz) { startWizard(false); return; }
   const mode = wiz ? 'wizard' : currentView;
   document.body.dataset.mode = mode;
@@ -25,7 +26,7 @@ $('.tabbar').addEventListener('click', (e) => {
 });
 $('[data-fab]').addEventListener('click', openFabMenu);
 
-bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindFree(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings(); bindMe(); bindFriends(); bindCommunity(); bindMarket(); bindStories();
+bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindFree(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings(); bindMe(); bindFriends(); bindCommunity(); bindMarket(); bindStories(); bindQuotes();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {

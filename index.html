@@ -4,8 +4,17 @@
 <meta charset="utf-8">
 <meta name="google-site-verification" content="h1h1rkGFLzhzUYdryFqwKjrDGQgcqyderMII2Dmw0jI" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f2f3f5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0e1013" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0d0e10">
+<script>
+  // Apply the saved theme before first paint (no flash). Full logic: applyTheme() in js/core.js
+  (function () {
+    var t = {}; try { t = JSON.parse(localStorage.getItem('ianz-theme') || '{}'); } catch (e) {}
+    var mode = t.mode || 'dark';
+    var dark = mode === 'auto' ? matchMedia('(prefers-color-scheme: dark)').matches : mode === 'dark';
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-accent', t.accent || 'volt');
+  })();
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Ianz Fitness">
@@ -52,6 +61,7 @@
 <script src="js/stats.js"></script>
 <script src="js/charts.js"></script>
 <script src="js/core.js"></script>
+<script src="js/quotes.js"></script>
 <script src="js/vendor/supabase.js"></script>
 <script src="js/config.js"></script>
 <script src="js/cloud.js"></script>
