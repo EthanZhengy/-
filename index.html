@@ -13,6 +13,7 @@
     var dark = mode === 'auto' ? matchMedia('(prefers-color-scheme: dark)').matches : mode === 'dark';
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     document.documentElement.setAttribute('data-accent', t.accent || 'volt');
+    if (t.splash === false) document.documentElement.setAttribute('data-nosplash', '');
   })();
 </script>
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -32,10 +33,27 @@
 </script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<!-- Launch screen (like WeChat's): today's line + a lifter at dawn; hidden by js/app.js after ~1.3 s -->
+<div id="splash" aria-hidden="true">
+  <div class="sp-top"><p id="spQuote" class="sp-quote">Light weight, baby!</p><p id="spBy" class="sp-by">—— Ronnie Coleman</p></div>
+  <svg class="sp-scene" viewBox="0 0 400 365" aria-hidden="true">
+    <circle cx="200" cy="236" r="124" fill="var(--primary)" opacity=".14"/>
+    <circle cx="200" cy="236" r="80" fill="var(--primary)" opacity=".2"/>
+    <ellipse cx="200" cy="268" rx="190" ry="10" fill="var(--text)" opacity=".08"/>
+    <g stroke="var(--text)" stroke-linecap="round" fill="none">
+      <path d="M194 170 L166 124 M206 170 L234 124" stroke-width="9"/>
+      <path d="M196 214 L182 266 M204 214 L218 266" stroke-width="11"/>
+    </g>
+    <g fill="var(--text)"><circle cx="200" cy="149" r="11"/><rect x="189" y="163" width="22" height="56" rx="9"/></g>
+    <g fill="var(--primary-ink)"><rect x="112" y="118" width="176" height="6" rx="3"/><rect x="128" y="100" width="12" height="42" rx="4"/><rect x="260" y="100" width="12" height="42" rx="4"/><rect x="114" y="106" width="10" height="30" rx="3"/><rect x="276" y="106" width="10" height="30" rx="3"/></g>
+  </svg>
+  <div class="sp-brand"><svg class="sp-mark" viewBox="0 0 512 512" aria-hidden="true"><g fill="var(--primary)"><rect x="104" y="204" width="34" height="104" rx="10"/><rect x="374" y="204" width="34" height="104" rx="10"/><rect x="144" y="170" width="40" height="172" rx="12"/><rect x="328" y="170" width="40" height="172" rx="12"/><rect x="184" y="244" width="144" height="24" rx="6"/></g><path d="M286 92 L196 270 L248 270 L222 420 L318 230 L266 230 L300 92 Z" fill="var(--text)" stroke="var(--bg)" stroke-width="14" stroke-linejoin="round" paint-order="stroke"/></svg><span>IANZ FITNESS</span></div>
+</div>
 <main>
   <noscript><h1>Ianz Fitness · 力量举训练计划</h1><p>12 周 5/3/1 力量举训练计划与 16 周 Mike 卧推增力计划。请开启 JavaScript 使用，或查看<a href="plans.html">训练计划介绍</a>。</p></noscript>
   <section id="view-wizard" class="view"></section>

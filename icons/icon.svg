@@ -1,10 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#1677ff"/>
-  <g fill="#fff">
-    <rect x="96" y="196" width="48" height="120" rx="12"/>
-    <rect x="368" y="196" width="48" height="120" rx="12"/>
-    <rect x="148" y="168" width="40" height="176" rx="12"/>
-    <rect x="324" y="168" width="40" height="176" rx="12"/>
-    <rect x="188" y="238" width="136" height="36" rx="8"/>
+  <defs>
+    <radialGradient id="g" cx="50%" cy="78%" r="70%">
+      <stop offset="0" stop-color="#2a3a0c"/>
+      <stop offset=".55" stop-color="#121410"/>
+      <stop offset="1" stop-color="#0b0c0e"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <g fill="#c8ff2e">
+    <rect x="104" y="204" width="34" height="104" rx="10"/>
+    <rect x="374" y="204" width="34" height="104" rx="10"/>
+    <rect x="144" y="170" width="40" height="172" rx="12"/>
+    <rect x="328" y="170" width="40" height="172" rx="12"/>
+    <rect x="184" y="244" width="144" height="24" rx="6"/>
   </g>
+  <path d="M286 92 L196 270 L248 270 L222 420 L318 230 L266 230 L300 92 Z" fill="#f4f6f0" stroke="#0b0c0e" stroke-width="14" stroke-linejoin="round" paint-order="stroke"/>
 </svg>

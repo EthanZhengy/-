@@ -740,3 +740,16 @@ body[data-mode=friends] { padding-bottom: calc(90px + env(safe-area-inset-bottom
 .swatch.on { border-color: var(--text); font-weight: 700; }
 .q-mine { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
 .pick-row.on { background: var(--primary-soft); border-radius: 12px; }
+
+/* Launch screen */
+#splash { position: fixed; inset: 0; z-index: 1000; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  padding: calc(16vh + env(safe-area-inset-top)) 28px calc(36px + env(safe-area-inset-bottom)); transition: opacity .45s ease; }
+#splash.out { opacity: 0; pointer-events: none; }
+[data-nosplash] #splash { display: none; }
+.sp-top { text-align: center; max-width: 520px; animation: sp-in .6s ease both; }
+.sp-quote { margin: 0; font-size: 26px; font-weight: 900; line-height: 1.45; }
+.sp-by { margin: 10px 0 0; font-size: 14px; color: var(--muted); }
+.sp-scene { width: min(100%, 420px); height: auto; animation: sp-in .8s .1s ease both; }
+.sp-brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: 3px; }
+.sp-mark { width: 40px; height: 40px; }
+@keyframes sp-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.15.1';
+const APP_VERSION = '1.16.0';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -55,7 +55,7 @@ function applyTheme() {
   root.dataset.accent = a.accent || 'volt';
   const meta = document.querySelector('meta[name=theme-color]');
   if (meta) meta.content = dark ? '#0d0e10' : '#f1f2ee';
-  try { localStorage.setItem('ianz-theme', JSON.stringify({ mode, accent: a.accent || 'volt' })); } catch { /* private mode */ }
+  try { localStorage.setItem('ianz-theme', JSON.stringify({ mode, accent: a.accent || 'volt', splash: a.splash !== false })); } catch { /* private mode */ }
 }
 applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if ((state.appearance || {}).mode === 'auto') applyTheme(); });

@@ -40,6 +40,14 @@ if ('serviceWorker' in navigator) {
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !wiz) { scheduleReminders(); render(); } });
 captureInvite();
+
+// Launch screen stays ~1.3 s from page start, then fades out
+(function hideSplash() {
+  const el = document.getElementById('splash');
+  if (!el) return;
+  const off = (state.appearance || {}).splash === false;
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 450); }, off ? 0 : Math.max(0, 1300 - performance.now()));
+})();
 cloudInit();
 render();
 scheduleReminders();

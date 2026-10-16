@@ -66,6 +66,15 @@ function quoteOfDay(date = new Date()) {
 const pickLine = (lines) => lines[Math.floor(Math.random() * lines.length)];
 function doneLine() { return quotesOn() ? pickLine(DONE_LINES) : '训练完成！记得吃练后餐'; }
 
+/* Launch screen: today's line (or the tagline when quotes are off) */
+(function fillSplash() {
+  const q = quotesOn() && quoteOfDay();
+  const t = document.getElementById('spQuote'), by = document.getElementById('spBy');
+  if (!t) return;
+  t.textContent = q ? q.t : '练得更聪明，变得更强。';
+  by.textContent = q && q.by ? `—— ${q.by}` : q ? '' : 'Ianz Fitness';
+})();
+
 function quoteCardHtml() {
   if (!quotesOn()) return '';
   const q = quoteOfDay();
@@ -87,7 +96,8 @@ function lookHtml() {
       <label>显示模式</label>
       <div class="chips">${[['dark', '暗色调'], ['light', '亮色调'], ['auto', '跟随系统']].map(([k, l]) => chip(l, `data-look-mode="${k}"`, (a.mode || 'dark') === k)).join('')}</div>
       <label>主题色</label>
-      <div class="swatches">${ACCENTS.map(([k, l, hex]) => `<button class="swatch${(a.accent || 'volt') === k ? ' on' : ''}" data-look-accent="${k}" aria-label="${l}"><i style="background:${hex}"></i><span>${l}</span></button>`).join('')}</div></div>
+      <div class="swatches">${ACCENTS.map(([k, l, hex]) => `<button class="swatch${(a.accent || 'volt') === k ? ' on' : ''}" data-look-accent="${k}" aria-label="${l}"><i style="background:${hex}"></i><span>${l}</span></button>`).join('')}</div>
+      <label class="row check"><input type="checkbox" data-splash ${a.splash !== false ? 'checked' : ''}> 打开 App 时显示启动页（今日一句）</label></div>
     <div class="card"><h2>今日一句</h2>
       <label class="row check"><input type="checkbox" data-q-on ${c.on ? 'checked' : ''}> 显示语录（首页、休息日、训练完成）</label>
       ${c.on ? `<label>语录类型</label>
@@ -126,5 +136,6 @@ function bindQuotes() {
   });
   document.addEventListener('change', (e) => {
     if (e.target.dataset && e.target.dataset.qOn !== undefined) { setQuotes({ on: e.target.checked }); render(); }
+    if (e.target.dataset && e.target.dataset.splash !== undefined) { state.appearance = { ...(state.appearance || {}), splash: e.target.checked }; save(); applyTheme(); toast(e.target.checked ? '下次打开时显示启动页' : '已关闭启动页'); }
   });
 }
