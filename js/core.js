@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.21.0';
+const APP_VERSION = '1.21.1';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -55,7 +55,7 @@ const FONTS = {
 /** 饮食功能: 'on' | 'collapsed' (home card folded to one line) | 'off' (hidden everywhere, restore in 我的 → 营养目标) */
 const dietMode = () => state.dietMode || 'on';
 const dietOn = () => dietMode() !== 'off';
-const FONT_SCALES = [[0.9, '小'], [1, '标准'], [1.1, '大'], [1.2, '特大'], [1.3, '超大']];
+const FONT_SCALES = [[0.8, '特小'], [0.9, '小'], [1, '标准'], [1.1, '大'], [1.2, '特大'], [1.3, '超大']];
 const LINE_HEIGHTS = [[1.25, '紧凑'], [1.4, '标准'], [1.6, '宽松'], [1.8, '特宽'], [2, '超宽']];
 function loadFontCss(font) {
   (FONTS[font] || FONTS.system).css.forEach((href) => {
