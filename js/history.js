@@ -10,14 +10,11 @@ let calDay = null; // selected date key
 const CAT_NAME = { chest: '胸', back: '背', leg: '腿', glute: '臀', calf: '小腿', shoulder: '肩', bi: '二头', tri: '三头', core: '核心', grip: '前臂' };
 /** Muscle groups of a saved result: r.cats since 1.22, else looked up from the exercise names. */
 function resultCats(r) {
-  if (r.doneCats) return r.doneCats;
-  if (r.cats) return r.cats;
-  return (r.names || []).map((name) => {
-    const lift = LIFTS.find((l) => VARIANTS[l].some((v) => v.name === name));
-    if (lift) return LIFT_CAT[lift];
-    const e = allExercises(state).find((x) => x.name === name) || (typeof EXDB !== 'undefined' && EXDB.find((x) => x.name === name));
-    return e ? exCat(e) : '';
-  });
+  const filled = (list) => (list || []).filter(Boolean);
+  if (filled(r.doneCats).length) return filled(r.doneCats);
+  if (filled(r.cats).length) return filled(r.cats);
+  // older records, or exercises saved without a muscle group: work it out from the names
+  return (r.names || []).map((name) => guessCat(name)).filter(Boolean);
 }
 let dayCache = {};
 /** { vol, cats: ['腿','背'], cardio, offline, items: [{ title, sub, badge }] } for a date, or null when nothing was done. */

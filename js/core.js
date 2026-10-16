@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.26.1';
+const APP_VERSION = '1.27.0';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -238,6 +238,7 @@ const ICONS = {
   food: svgI('<path d="M4 12h16a8 8 0 0 1-16 0z"/><path d="M8 8c0-2 1-3 1-5M12 8c0-2 1-3 1-5M16 8c0-2 1-3 1-5"/>', false),
   plan: svgI('<rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 2.5v3M16 2.5v3M4 9.5h16M8 13.5h3M8 17h6"/>', false),
   data: svgI('<path d="M12 3v12M7.5 10.5 12 15l4.5-4.5"/><path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/>', false),
+  info: svgI('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>', false),
   bars: svgI('<path d="M5 20V12M12 20V5M19 20v-9M3 20.5h18"/>', false),
   phone: svgI('<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>', false),
   cloud: svgI('<path d="M7 18.5a4.5 4.5 0 0 1-.5-9A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 10z"/>', false),

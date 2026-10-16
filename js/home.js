@@ -480,7 +480,7 @@ function addExtra(it) {
   const list = t.log.extra[sid] = t.log.extra[sid] || [];
   const nk = Date.now().toString(36);
   wkOpen = `x${nk}`; // open the new card
-  list.push({ k: nk, id: it.id, name: it.name, img: it.img || null, cue: it.cue || (it.s && it.s[0]) || '', reps: String(firstInt(it.reps) || 10) });
+  list.push({ k: nk, id: it.id, name: it.name, cat: exCat(it) || undefined, img: it.img || null, cue: it.cue || (it.s && it.s[0]) || '', reps: String(firstInt(it.reps) || 10) });
   snapshot(t.date, t.log); save();
   toast(`已加入今天的训练：${it.name}`);
 }

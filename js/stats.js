@@ -98,10 +98,36 @@ function blockRows(st, log, sid, b) {
 
 /** Muscle group of an exercise (library category keys: chest, back, leg, shoulder…). */
 function exCat(ex, lift) {
+  if (ex.cat) return ex.cat;
   const l = lift || ex.lift;
   if (l && LIFT_CAT[l]) return LIFT_CAT[l];
   if (ex.cats && ex.cats.length) return ex.cats.find((c) => c !== 'main') || ex.cats[0];
-  return MUSCLE_CAT[ex.m] || '';
+  if (MUSCLE_CAT[ex.m] && ex.m !== 'custom') return MUSCLE_CAT[ex.m];
+  return guessCat(ex.name || '', ex.id);
+}
+/* Exercises added by hand only carry id + name: find them in the libraries, else read the name. */
+const CAT_WORDS = [
+  ['shoulder', /反向飞鸟|俯身飞鸟|后束|侧平举|前平举|面拉/],
+  ['back', /直臂下压|直臂下拉|引体|划船|下拉|硬拉|背阔|山羊挺身|超人|耸肩/],
+  ['chest', /卧推|飞鸟|夹胸|推胸|胸|俯卧撑|双杠|撑体/],
+  ['shoulder', /推举|侧平举|前平举|肩|阿诺德|直立划船|后束/],
+  ['bi', /弯举|二头/],
+  ['tri', /臂屈伸|下压|三头|窄推|窄握卧推/],
+  ['glute', /臀/],
+  ['calf', /提踵|小腿/],
+  ['leg', /蹲|腿|弓步|箭步|登阶|腘绳/],
+  ['core', /卷腹|平板支撑|举腿|腹|核心|俄罗斯转体|死虫|侧弯/],
+  ['grip', /握力|腕|农夫|悬挂/],
+];
+function guessCat(name, id) {
+  const lift = LIFTS.find((l) => VARIANTS[l].some((v) => v.id === id || v.name === name));
+  if (lift) return LIFT_CAT[lift];
+  const known = (typeof state !== 'undefined' ? (state.customEx || []) : []).concat(EXERCISES).find((e) => (id && e.id === id) || e.name === name);
+  if (known && (known.cats || (known.m && known.m !== 'custom'))) return exCat({ ...known, name: '' });
+  const db = typeof EXDB !== 'undefined' && EXDB.find((e) => (id && e.id === id) || e.name === name);
+  if (db && db.cats && db.cats.length) return db.cats[0];
+  const hit = CAT_WORDS.find(([, re]) => re.test(name));
+  return hit ? hit[0] : '';
 }
 /** Sets / volume of a free workout or custom day (only ticked sets count; warm-ups excluded). */
 function freeSummary(st, date, log, sid = 'free') {

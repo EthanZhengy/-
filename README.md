@@ -306,3 +306,7 @@ js/app.js         导航与启动
 sw.js        离线缓存与通知
 tests/       node tests/engine.test.js && node tests/stats.test.js
 ```
+
+## 关于我们
+
+「我的 → 关于我们」：App 标志（一根杠铃下的两个训练伙伴：荧光绿是 Ian，白色是 Mike）和团队名单——Ian Zheng（Founder & CEO）、Mike Zhang（创意思维总监 CIO · Chief Ideas Officer）。
