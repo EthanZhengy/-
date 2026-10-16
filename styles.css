@@ -2,6 +2,7 @@
 @font-face { font-family: 'Barlow Condensed'; font-weight: 700; font-display: swap; src: url(assets/fonts/barlow-condensed-700.woff2) format('woff2'); }
 @font-face { font-family: 'Barlow Condensed'; font-weight: 800; font-display: swap; src: url(assets/fonts/barlow-condensed-800.woff2) format('woff2'); }
 :root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   --display: 'Barlow Condensed', 'DIN Condensed', 'Arial Narrow', sans-serif;
   /* light (亮色调) */
   --bg: #f1f2ee;
@@ -45,7 +46,8 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-family: var(--font-ui);
+  zoom: var(--ui-zoom, 1);
   background: var(--bg); color: var(--text);
   padding-bottom: calc(110px + env(safe-area-inset-bottom));
   -webkit-tap-highlight-color: transparent;
@@ -754,3 +756,18 @@ body[data-mode=friends] { padding-bottom: calc(90px + env(safe-area-inset-bottom
 .sp-mark { width: 40px; height: 40px; }
 @keyframes sp-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .dl-row { padding: 8px 0; border-top: 1px solid var(--line); }
+
+/* 字体（外观设置）: Chinese faces load on demand from jsDelivr; system faces are the fallback */
+:root { --f-kai: 'LXGW WenKai Screen', 'Kaiti SC', 'STKaiti', 'KaiTi', serif; --f-serif: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif; --f-round: 'ZCOOL KuaiLe', 'Yuanti SC', 'PingFang SC', sans-serif; }
+:root[data-font="kai"] { --font-ui: 'LXGW WenKai Screen', 'Kaiti SC', 'STKaiti', 'KaiTi', serif; }
+:root[data-font="serif"] { --font-ui: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif; }
+:root[data-font="round"] { --font-ui: 'ZCOOL KuaiLe', 'Yuanti SC', 'PingFang SC', sans-serif; }
+:root[data-num="system"] { --display: var(--font-ui); }
+input, select, textarea, button { font-family: inherit; }
+.font-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.font-opt { border: 2px solid var(--line); background: var(--card-2); color: var(--text); border-radius: 14px; padding: 10px 12px; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.font-opt.on { border-color: var(--text); }
+.font-opt b { font-size: 13px; }
+.font-opt span { font-size: 16px; line-height: 1.35; }
+.font-preview { background: var(--card-2); border-radius: 14px; padding: 12px 14px; margin-top: 8px; }
+.font-preview .fp-num { font-family: var(--display); font-weight: 800; font-size: 28px; }

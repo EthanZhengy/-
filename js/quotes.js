@@ -90,6 +90,7 @@ function setQuotes(patch) { state.quotes = { ...quoteCfg(), ...patch }; save(); 
 const ACCENTS = [['volt', '荧光绿', '#c8ff2e'], ['orange', '燃橙', '#ff6a2b'], ['cyan', '冰蓝', '#3ddcff'], ['pink', '霓虹粉', '#ff4f8b']];
 function lookHtml() {
   const a = state.appearance || {};
+  Object.keys(FONTS).forEach(loadFontCss); // so each option previews in its own face
   const c = quoteCfg();
   const hiddenN = c.hidden.length;
   return `<div class="card"><h2>外观</h2>
@@ -97,6 +98,13 @@ function lookHtml() {
       <div class="chips">${[['dark', '暗色调'], ['light', '亮色调'], ['auto', '跟随系统']].map(([k, l]) => chip(l, `data-look-mode="${k}"`, (a.mode || 'dark') === k)).join('')}</div>
       <label>主题色</label>
       <div class="swatches">${ACCENTS.map(([k, l, hex]) => `<button class="swatch${(a.accent || 'volt') === k ? ' on' : ''}" data-look-accent="${k}" aria-label="${l}"><i style="background:${hex}"></i><span>${l}</span></button>`).join('')}</div>
+      <label>字体</label>
+      <div class="font-opts">${Object.entries(FONTS).map(([k, f]) => `<button class="font-opt${(a.font || 'system') === k ? ' on' : ''}" data-look-font="${k}" style="font-family:${k === 'system' ? 'inherit' : `var(--f-${k})`}"><b>${f.name}</b><span>今天练腿，谁也别想让我爬楼梯</span></button>`).join('')}</div>
+      <label>文字大小</label>
+      <div class="chips">${FONT_SCALES.map(([v, l]) => chip(l, `data-look-scale="${v}"`, (a.scale || 1) === v)).join('')}</div>
+      <label>数字字体</label>
+      <div class="chips">${chip('窄体粗字（推荐）', 'data-look-num="display"', a.numFont !== 'system')}${chip('跟随正文字体', 'data-look-num="system"', a.numFont === 'system')}</div>
+      <div class="font-preview"><div>预览：卧推日 · 第 2 周</div><div class="fp-num">85kg × 5+</div><div class="muted">字体从网络按需加载，第一次切换可能要等一两秒。</div></div>
       <label class="row check"><input type="checkbox" data-splash ${a.splash !== false ? 'checked' : ''}> 打开 App 时显示启动页（今日一句）</label></div>
     <div class="card"><h2>今日一句</h2>
       <label class="row check"><input type="checkbox" data-q-on ${c.on ? 'checked' : ''}> 显示语录（首页、休息日、训练完成）</label>
@@ -110,7 +118,10 @@ function lookHtml() {
 function handleLookClick(b) {
   const ds = b.dataset;
   const c = quoteCfg();
-  if (ds.lookMode) { state.appearance = { ...(state.appearance || {}), mode: ds.lookMode }; save(); applyTheme(); }
+  if (ds.lookFont) { state.appearance = { ...(state.appearance || {}), font: ds.lookFont }; save(); applyTheme(); }
+  else if (ds.lookScale) { state.appearance = { ...(state.appearance || {}), scale: Number(ds.lookScale) }; save(); applyTheme(); }
+  else if (ds.lookNum) { state.appearance = { ...(state.appearance || {}), numFont: ds.lookNum }; save(); applyTheme(); }
+  else if (ds.lookMode) { state.appearance = { ...(state.appearance || {}), mode: ds.lookMode }; save(); applyTheme(); }
   else if (ds.lookAccent) { state.appearance = { ...(state.appearance || {}), accent: ds.lookAccent }; save(); applyTheme(); }
   else if (ds.qCat) {
     const cats = c.cats.includes(ds.qCat) ? c.cats.filter((x) => x !== ds.qCat) : c.cats.concat(ds.qCat);
@@ -131,7 +142,7 @@ function handleLookClick(b) {
 }
 function bindQuotes() {
   document.addEventListener('click', (e) => {
-    const b = e.target.closest('#view-home [data-q], #view-me [data-q], #view-me [data-look-mode], #view-me [data-look-accent], #view-me [data-q-cat]');
+    const b = e.target.closest('#view-home [data-q], #view-me [data-q], #view-me [data-look-mode], #view-me [data-look-accent], #view-me [data-look-font], #view-me [data-look-scale], #view-me [data-look-num], #view-me [data-q-cat]');
     if (b) handleLookClick(b);
   });
   document.addEventListener('change', (e) => {

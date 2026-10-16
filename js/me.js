@@ -156,7 +156,7 @@ const ME_PAGES = {
   data: ['数据备份', 'data', () => dataHtml()],
   install: ['安装到手机', 'phone', () => installHtml()],
   account: ['账号与同步', 'cloud', () => accountCard()],
-  look: ['外观与语录', 'gear', () => lookHtml()],
+  look: ['外观、字体与语录', 'gear', () => lookHtml()],
 };
 
 function renderMe() {

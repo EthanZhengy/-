@@ -14,6 +14,10 @@
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     document.documentElement.setAttribute('data-accent', t.accent || 'volt');
     if (t.splash === false) document.documentElement.setAttribute('data-nosplash', '');
+    if (t.font) document.documentElement.setAttribute('data-font', t.font);
+    if (t.num) document.documentElement.setAttribute('data-num', t.num);
+    if (t.scale) document.documentElement.style.setProperty('--ui-zoom', String(t.scale));
+    (t.css || []).forEach(function (h) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = h; l.setAttribute('data-font-css', h); document.head.appendChild(l); });
   })();
 </script>
 <meta name="apple-mobile-web-app-capable" content="yes">

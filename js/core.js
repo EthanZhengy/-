@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.17.0';
+const APP_VERSION = '1.18.0';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -45,7 +45,24 @@ function loadState() {
 }
 let state = loadState();
 
-/** 外观: dark / light / follow the system, plus an accent color. Mirrored to localStorage for the pre-paint script in index.html. */
+/* 字体: web fonts are split by character range, so only the glyphs on screen are downloaded */
+const FONTS = {
+  system: { name: '默认黑体', css: [] },
+  kai: { name: '霞鹜文楷', css: ['https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/lxgwwenkaigbscreen.css'] },
+  serif: { name: '思源宋体', css: ['https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@5.3.1/400.css', 'https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@5.3.1/700.css'] },
+  round: { name: '站酷快乐体', css: ['https://cdn.jsdelivr.net/npm/@fontsource/zcool-kuaile@5.3.0/400.css'] },
+};
+const FONT_SCALES = [[0.9, '小'], [1, '标准'], [1.1, '大'], [1.2, '特大'], [1.3, '超大']];
+function loadFontCss(font) {
+  (FONTS[font] || FONTS.system).css.forEach((href) => {
+    if (document.querySelector(`link[data-font-css="${href}"]`)) return;
+    const l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = href; l.dataset.fontCss = href;
+    document.head.appendChild(l);
+  });
+}
+
+/** 外观: dark / light / follow the system, accent color, font and text size. Mirrored to localStorage for the pre-paint script in index.html. */
 function applyTheme() {
   const a = state.appearance || {};
   const mode = a.mode || 'dark';
@@ -53,9 +70,14 @@ function applyTheme() {
   const root = document.documentElement;
   root.dataset.theme = dark ? 'dark' : 'light';
   root.dataset.accent = a.accent || 'volt';
+  const font = FONTS[a.font] ? a.font : 'system';
+  root.dataset.font = font;
+  root.dataset.num = a.numFont === 'system' ? 'system' : 'display';
+  root.style.setProperty('--ui-zoom', String(a.scale || 1));
+  loadFontCss(font);
   const meta = document.querySelector('meta[name=theme-color]');
   if (meta) meta.content = dark ? '#0d0e10' : '#f1f2ee';
-  try { localStorage.setItem('ianz-theme', JSON.stringify({ mode, accent: a.accent || 'volt', splash: a.splash !== false })); } catch { /* private mode */ }
+  try { localStorage.setItem('ianz-theme', JSON.stringify({ mode, accent: a.accent || 'volt', splash: a.splash !== false, font, num: root.dataset.num, scale: a.scale || 1, css: FONTS[font].css })); } catch { /* private mode */ }
 }
 applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if ((state.appearance || {}).mode === 'auto') applyTheme(); });
