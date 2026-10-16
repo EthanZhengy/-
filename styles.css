@@ -822,3 +822,9 @@ input, select, textarea, button { font-family: inherit; }
 .mc-detail { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
 .mc-detail h3 { margin: 0 0 6px; font-size: 15px; }
 .mc-row { padding: 5px 0; font-size: 14px; }
+
+.rest-step { display: flex; align-items: center; justify-content: center; gap: 24px; margin: 4px 0 6px; }
+.rest-step b { font-size: 30px; font-family: var(--display); min-width: 96px; text-align: center; }
+.rest-step .icon-round { font-size: 24px; width: 48px; height: 48px; }
+/* free workout: lift the rest timer above its bottom toolbar */
+body:has(.free-bar) .rest { z-index: 25; bottom: calc(84px + env(safe-area-inset-bottom)); }

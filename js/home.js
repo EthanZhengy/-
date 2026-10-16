@@ -436,8 +436,10 @@ function openRestPicker(bkey) {
   const b = sessionWithExtras(state, t.date, wkSid(t), t.log).blocks.find((x) => x.key === bkey);
   if (!b) return;
   const cur = restFor(b);
-  openSheet(`休息时间 · ${b.title.replace(/^.*· /, '')}`, `<div class="chips">${REST_OPTIONS.map((sec) => `<button class="chip${sec === cur ? ' on' : ''}" data-restset="${sec}">${fmtRest(sec)}</button>`).join('')}</div>
-    <p class="muted">每次完成一组后自动开始倒计时。这个动作以后都会用这个休息时间。</p>`, { type: 'rest', rk: restKey(b) });
+  openSheet(`休息时间 · ${b.title.replace(/^.*· /, '')}`, `<div class="rest-step"><button class="icon-round" data-reststep="-15" aria-label="减少 15 秒">−</button>
+      <b>${fmtRest(cur)}</b><button class="icon-round" data-reststep="15" aria-label="增加 15 秒">＋</button></div>
+    <p class="muted center small">每次 ±15 秒，或直接选：</p><div class="chips">${REST_OPTIONS.map((sec) => `<button class="chip${sec === cur ? ' on' : ''}" data-restset="${sec}">${fmtRest(sec)}</button>`).join('')}</div>
+    <p class="muted">每次完成一组后自动开始倒计时。这个动作以后都会用这个休息时间。</p>`, { type: 'rest', rk: restKey(b), cur });
 }
 
 /* Rest timer shown after ticking a set */
@@ -461,7 +463,7 @@ function drawRest() {
   el.hidden = false;
   el.innerHTML = `<div class="rest-bar" style="width:${(left / restTimer.total) * 100}%"></div>
     <span>休息</span><b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b>
-    <button data-rest-add="30">+30s</button><button data-rest-skip>跳过</button>`;
+    <button data-rest-add="-30" aria-label="减少 30 秒">−30s</button><button data-rest-add="30" aria-label="增加 30 秒">+30s</button><button data-rest-skip>跳过</button>`;
 }
 
 function bindWorkout() {
@@ -569,6 +571,13 @@ function bindWorkout() {
         delete t.log.sx[`${t.sid}:${sheetCtx.key}`]; delete t.log.sets[`${t.sid}:${sheetCtx.key}`];
         snapshot(t.date, t.log); save(); closeSheet(); render(); toast('已恢复推荐动作');
       }
+    } else if (sheetCtx.type === 'rest' && ds.reststep) {
+      const cur = state.restPref[sheetCtx.rk] || sheetCtx.cur;
+      const next = Math.min(600, Math.max(15, cur + Number(ds.reststep)));
+      state.restPref[sheetCtx.rk] = next; sheetCtx.cur = next;
+      save(); render();
+      $('#sheet .rest-step b').textContent = fmtRest(next);
+      document.querySelectorAll('#sheet [data-restset]').forEach((c) => c.classList.toggle('on', Number(c.dataset.restset) === next));
     } else if (sheetCtx.type === 'rest' && ds.restset) {
       state.restPref[sheetCtx.rk] = Number(ds.restset);
       save(); closeSheet(); render();
@@ -584,6 +593,12 @@ function bindWorkout() {
     const b = e.target.closest('button');
     if (!b || !restTimer) return;
     if (b.dataset.restSkip !== undefined) stopRest();
-    else { restTimer.end += 30000; restTimer.total += 30; drawRest(); }
+    else if (b.dataset.restAdd) {
+      const sec = Number(b.dataset.restAdd);
+      restTimer.end += sec * 1000;
+      restTimer.total = Math.max(1, restTimer.total + sec);
+      if (restTimer.end <= Date.now()) { stopRest(); return toast('⏰ 休息结束，开始下一组'); }
+      drawRest();
+    }
   });
 }
