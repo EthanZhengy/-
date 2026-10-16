@@ -22,14 +22,9 @@ $('.tabbar').addEventListener('click', (e) => {
   currentView = b.dataset.view;
   render(); window.scrollTo(0, 0);
 });
-$('[data-fab]').addEventListener('click', () => {
-  const t = todayInfo();
-  if (!t.pos) return toast('计划还没开始');
-  if (t.sid === 'rest') { currentView = 'home'; homeTab = 'today'; render(); return toast('今天推荐休息，想练的话先选一个训练日'); }
-  currentView = 'workout'; render(); window.scrollTo(0, 0);
-});
+$('[data-fab]').addEventListener('click', openFabMenu);
 
-bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings(); bindMe(); bindFriends();
+bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindFree(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings(); bindMe(); bindFriends();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {

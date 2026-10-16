@@ -12,7 +12,7 @@ function renderHistory() {
   if (!pos || !hist.length && !weeks.some((w) => w.app + w.offline)) {
     $('#view-history').innerHTML = `<div class="page-head"><h1>历史</h1></div><div class="card"><h2>还没有训练数据</h2>
       <p class="muted">完成第一次训练后，这里会显示力量曲线、训练量、完成日历和个人纪录。</p>
-      <p class="muted">如果之前已经在 App 外练过几周，可以在「挑战」里把那些训练标记为 📝 App 外完成。</p></div>${bodyweightCard(today)}`;
+      <p class="muted">如果之前已经在 App 外练过几周，可以在「挑战」里把那些训练标记为 📝 App 外完成。</p></div>${freeHistoryHtml()}${bodyweightCard(today)}`;
     return;
   }
   const nApp = hist.filter((h) => !h.offline).length, nOff = hist.length - nApp;
@@ -77,6 +77,7 @@ function renderHistory() {
       const l = state.logs[dateKey(date)];
       const label = `${fmtDate(date)} ${WEEKDAYS[weekdayIdx(date)]}`;
       if (l && l.done && SESSIONS[l.session]) return { cls: l.offline ? 'off' : 'app', tip: `${label} · ${sessionName(l.session, (w % progOf().weeks) + 1)} · ${l.offline ? 'App 外完成' : 'App 完成'}` };
+      if (l && l.free && l.free.done) return { cls: 'app', tip: `${label} · ${l.free.title || '自由训练'}` };
       if (dayDiff(today, date) > 0) return { cls: 'future' };
       return { cls: 'none', tip: `${label} · 无训练` };
     }));
@@ -86,6 +87,8 @@ function renderHistory() {
     ${calendarChart(cells, labels)}
     <h3>每周完成情况</h3>
     <div class="weekbar">${recent.map((w) => `<span class="${w.app + w.offline >= w.required ? 'full' : w.current ? 'cur' : ''}" data-tip="第 ${w.week} 周 ${w.app + w.offline}/${w.required}">${w.app + w.offline}/${w.required}</span>`).join('')}</div></div>`;
+
+  logHtml += freeHistoryHtml();
 
   // Recent sessions
   const byWeek = {};

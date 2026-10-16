@@ -114,8 +114,7 @@ function openExercise(id) {
       <p class="muted">❤️ 喜欢的动作会被优先、经常安排；🚫 不做的动作不会出现在计划里。</p>
       ${it.id.startsWith('custom_') ? '<button class="btn danger block" data-act="del-custom">删除这个自定义动作</button>' : ''}`;
   }
-  const t = todayInfo();
-  if (t.pos && t.sid !== 'rest') actions += '<button class="btn block" data-act="add-today">＋ 加入今天的训练</button>';
+  actions += '<button class="btn block" data-act="add-today">＋ 加入今天的训练</button>';
   const muscles = it.pm ? `<p><b>主要肌群</b>：${it.pm.join('、')}${it.sm && it.sm.length ? `<br><b>辅助肌群</b>：${it.sm.join('、')}` : ''}</p>` : '';
   openSheet(it.name, `
     ${exPhotos(it)}

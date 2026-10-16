@@ -14,9 +14,10 @@ const firstInt = (s) => parseInt(String(s), 10) || 0;
 const SET_TYPES = { work: '正式组', warm: '热身组', drop: '递减组', fail: '力竭组' };
 const SET_TYPE_ORDER = ['work', 'warm', 'drop', 'fail'];
 
-/** buildSession + the exercises the user added to this day. */
+/** buildSession + the exercises the user added to this day. sid 'free' = a free workout with only added exercises. */
 function sessionWithExtras(st, date, sid, log) {
-  const s = buildSession(st, date, sid, { readiness: log.readiness, swaps: (log.swaps || {})[sid] || {} });
+  const s = sid === 'free' ? { pos: null, blocks: [], notes: [], sessionId: 'free' }
+    : buildSession(st, date, sid, { readiness: log.readiness, swaps: (log.swaps || {})[sid] || {} });
   if (!s) return s;
   ((log.extra || {})[sid] || []).forEach((e) => s.blocks.push({
     key: `x${e.k}`, type: 'sets', ex: e, title: `自选 · ${e.name}`, sets: 3, reps: e.reps || '10', extra: true,
@@ -51,6 +52,22 @@ function blockRows(st, log, sid, b) {
     if (r.plus && a) r.r = a;
   });
   return rows;
+}
+
+/** Sets / volume of a free workout (only ticked sets count; warm-ups excluded). */
+function freeSummary(st, date, log) {
+  const s = sessionWithExtras(st, date, 'free', log);
+  let sets = 0, done = 0, volume = 0;
+  s.blocks.forEach((b) => {
+    const ticks = (log.sets || {})[`free:${b.key}`] || [];
+    blockRows(st, log, 'free', b).forEach((r, i) => {
+      sets++;
+      if (!ticks[i]) return;
+      done++;
+      if (r.t !== 'warm') volume += (Number(r.w) || 0) * (Number(r.r) || 0);
+    });
+  });
+  return { exercises: s.blocks.length, sets, done, volume: Math.round(volume), names: s.blocks.map((b) => b.ex.name) };
 }
 
 /**
@@ -224,5 +241,5 @@ function personalRecords(st, hist) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { summarizeSession, sessionWithExtras, blockRows, SET_TYPES, SET_TYPE_ORDER, trainingHistory, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords, exerciseCounts };
+  module.exports = { summarizeSession, sessionWithExtras, freeSummary, blockRows, SET_TYPES, SET_TYPE_ORDER, trainingHistory, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords, exerciseCounts };
 }

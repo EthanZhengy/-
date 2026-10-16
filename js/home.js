@@ -96,7 +96,7 @@ function renderHome() {
     ${cloudEnabled() ? `<button class="fr-entry" data-act="friends">${ICONS.addUser}朋友${social.incoming.length ? `<i class="dot-badge">${social.incoming.length}</i>` : ''}</button>` : ''}</div>`;
   html += dietCard(t);
   html += `<div class="utabs">${[['today', '今日训练'], ['week', '本周安排'], ['food', '饮食建议']].map(([k, l]) => `<button data-htab="${k}" class="${homeTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-  if (homeTab === 'today') html += homeToday(t);
+  if (homeTab === 'today') html += homeFreeHtml(t) + homeToday(t);
   else if (homeTab === 'week') html += homeWeek(t);
   else html += homeFood(t);
   $('#view-home').innerHTML = html;
@@ -204,7 +204,7 @@ function bindHome() {
       const w = Number(ds.week);
       if (ds.mark) { if (!markOffline(state, w, ds.mark, t.date)) return toast('这一周没有空的日期可以标记'); }
       else unmarkOffline(state, w, ds.unmark);
-    } else if (ds.act === 'start') { currentView = 'workout'; render(); window.scrollTo(0, 0); return; }
+    } else if (ds.act === 'start') { wkMode = 'plan'; currentView = 'workout'; render(); window.scrollTo(0, 0); return; }
     else if (ds.act === 'friends') return openFriends();
     else if (ds.act === 'start-now') state.startDate = dateKey(mondayOf(t.date));
     else return;
@@ -256,7 +256,12 @@ function snapshot(date, log) {
   postActivity(date, log); // share the day's workout with friends (no-op when signed out)
 }
 
+/* The workout screen runs either today's plan session ('plan') or a free workout ('free'). */
+let wkMode = 'plan';
+const wkSid = (t) => (wkMode === 'free' ? 'free' : t.sid);
+
 function renderWorkout() {
+  if (wkMode === 'free') return renderFree();
   const t = todayInfo();
   if (!t.pos || t.sid === 'rest') { currentView = 'home'; return render(); }
   const s = sessionWithExtras(state, t.date, t.sid, t.log);
@@ -292,29 +297,32 @@ function setRowHtml(b, rows, r, i, done, key) {
   </div>${am ? `<div class="muted e1rm">估算 1RM ≈ ${fmtW(Math.round(epley(Number(r.w) || 0, Number(r.r)) * 2) / 2)}kg</div>` : ''}`;
 }
 
-function workoutHtml(s, log, sid, doneToday) {
+function blockHtml(s, b, log, sid) {
   const key = (k) => `${sid}:${k}`;
   let html = '';
+  const ticks = log.sets[key(b.key)] || [];
+  const rows = blockRows(state, log, sid, b);
+  html += `<div class="card block"><div class="row between"><div><div class="muted small">${esc(b.title.split(' · ')[0])}</div><h2>${esc(b.title.split(' · ').slice(1).join(' · '))}</h2></div>
+    ${b.ex && !b.extra ? `<button class="btn tiny ghost" data-swap="${b.key}" data-slot="${b.slot}">换一个</button>` : b.sub ? `<span class="muted">${esc(b.sub)}</span>` : ''}</div>`;
+  if (b.ex && b.ex.img) html += `<div class="blk-photo"><img src="${exImgUrl(b.ex.img, 0)}" alt="" loading="lazy"><img src="${exImgUrl(b.ex.img, 1)}" alt="" loading="lazy"></div>`;
+  if (b.ex && b.ex.cue) html += `<p class="cue">${esc(b.ex.cue)}</p>`;
+  if (b.note) html += `<p class="cue">${esc(b.note)}</p>`;
+  const plan = b.type === 'main' ? '' : `计划 ${b.w ? `${fmtW(b.w)}kg × ` : ''}${esc(b.reps)}${/[秒米]/.test(b.reps) ? '' : ' 次'} × ${b.sets} 组`;
+  html += `<div class="blk-tools"><span class="muted small">${plan}</span><button class="rest-chip" data-restcfg="${b.key}">⏱ 休息 ${fmtRest(restFor(b))}</button></div>`;
+  rows.forEach((r, i) => { html += setRowHtml(b, rows, r, i, ticks[i], key(b.key)); });
+  html += `<div class="set-actions"><button data-addset="${b.key}">＋ 加一组</button>${rows.length > 1 ? `<button data-delset="${b.key}">－ 删一组</button>` : ''}${b.extra ? `<button class="danger" data-delex="${b.key}">移除动作</button>` : ''}</div>`;
+  if (b.test) {
+    const val = state.tests[s.pos.cycle] && state.tests[s.pos.cycle][b.lift];
+    html += `<label>测得的新 1RM (kg)</label><input type="number" inputmode="decimal" step="0.5" data-test="${b.lift}" value="${val ?? ''}" placeholder="最后一次标准完成的重量">
+      <p class="muted">填写后，下一轮的 TM 会按新 1RM × 90% 自动计算。</p>`;
+  }
+  return `${html}</div>`;
+}
+
+function workoutHtml(s, log, sid, doneToday) {
+  let html = '';
   if (s.notes.length) html += `<ul class="notes">${s.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>`;
-  s.blocks.forEach((b) => {
-    const ticks = log.sets[key(b.key)] || [];
-    const rows = blockRows(state, log, sid, b);
-    html += `<div class="card block"><div class="row between"><div><div class="muted small">${esc(b.title.split(' · ')[0])}</div><h2>${esc(b.title.split(' · ').slice(1).join(' · '))}</h2></div>
-      ${b.ex && !b.extra ? `<button class="btn tiny ghost" data-swap="${b.key}" data-slot="${b.slot}">换一个</button>` : b.sub ? `<span class="muted">${esc(b.sub)}</span>` : ''}</div>`;
-    if (b.ex && b.ex.img) html += `<div class="blk-photo"><img src="${exImgUrl(b.ex.img, 0)}" alt="" loading="lazy"><img src="${exImgUrl(b.ex.img, 1)}" alt="" loading="lazy"></div>`;
-    if (b.ex && b.ex.cue) html += `<p class="cue">${esc(b.ex.cue)}</p>`;
-    if (b.note) html += `<p class="cue">${esc(b.note)}</p>`;
-    const plan = b.type === 'main' ? '' : `计划 ${b.w ? `${fmtW(b.w)}kg × ` : ''}${esc(b.reps)}${/[秒米]/.test(b.reps) ? '' : ' 次'} × ${b.sets} 组`;
-    html += `<div class="blk-tools"><span class="muted small">${plan}</span><button class="rest-chip" data-restcfg="${b.key}">⏱ 休息 ${fmtRest(restFor(b))}</button></div>`;
-    rows.forEach((r, i) => { html += setRowHtml(b, rows, r, i, ticks[i], key(b.key)); });
-    html += `<div class="set-actions"><button data-addset="${b.key}">＋ 加一组</button>${rows.length > 1 ? `<button data-delset="${b.key}">－ 删一组</button>` : ''}${b.extra ? `<button class="danger" data-delex="${b.key}">移除动作</button>` : ''}</div>`;
-    if (b.test) {
-      const val = state.tests[s.pos.cycle] && state.tests[s.pos.cycle][b.lift];
-      html += `<label>测得的新 1RM (kg)</label><input type="number" inputmode="decimal" step="0.5" data-test="${b.lift}" value="${val ?? ''}" placeholder="最后一次标准完成的重量">
-        <p class="muted">填写后，下一轮的 TM 会按新 1RM × 90% 自动计算。</p>`;
-    }
-    html += '</div>';
-  });
+  s.blocks.forEach((b) => { html += blockHtml(s, b, log, sid); });
   html += '<button class="btn ghost block" data-act="add-extra">＋ 添加动作</button>';
   html += doneToday
     ? `<div class="card center">${BADGE.app}<p>今天的训练已完成，记得吃练后餐。</p><button class="btn ghost block" data-act="undo-done">撤销完成</button></div>`
@@ -347,15 +355,17 @@ function openPicker() {
 }
 function addExtra(it) {
   const t = todayInfo();
-  if (!t.pos || t.sid === 'rest') return toast('今天是休息日');
-  const list = t.log.extra[t.sid] = t.log.extra[t.sid] || [];
+  if (wkMode !== 'free' && (!t.pos || t.sid === 'rest')) startFree(); // nothing planned today: start a free workout
+  const sid = wkSid(t);
+  if (sid === 'free') freeLog(t.log).startedAt = freeLog(t.log).startedAt || (freeLog(t.log).elapsed ? null : Date.now());
+  const list = t.log.extra[sid] = t.log.extra[sid] || [];
   list.push({ k: Date.now().toString(36), id: it.id, name: it.name, img: it.img || null, cue: it.cue || (it.s && it.s[0]) || '', reps: String(firstInt(it.reps) || 10) });
   snapshot(t.date, t.log); save();
   toast(`已加入今天的训练：${it.name}`);
 }
 function openRestPicker(bkey) {
   const t = todayInfo();
-  const b = sessionWithExtras(state, t.date, t.sid, t.log).blocks.find((x) => x.key === bkey);
+  const b = sessionWithExtras(state, t.date, wkSid(t), t.log).blocks.find((x) => x.key === bkey);
   if (!b) return;
   const cur = restFor(b);
   openSheet(`休息时间 · ${b.title.replace(/^.*· /, '')}`, `<div class="chips">${REST_OPTIONS.map((sec) => `<button class="chip${sec === cur ? ' on' : ''}" data-restset="${sec}">${fmtRest(sec)}</button>`).join('')}</div>
@@ -392,9 +402,11 @@ function bindWorkout() {
     const b = e.target.closest('button');
     if (!b) return;
     const t = todayInfo();
-    const { log, sid } = t;
+    const { log } = t;
+    const sid = wkSid(t);
     const ds = b.dataset;
     if (ds.act === 'back') { currentView = 'home'; render(); return; }
+    if (ds.fact) return freeAction(ds.fact, t);
     const blk = (k) => sessionWithExtras(state, t.date, sid, log).blocks.find((x) => x.key === k);
     if (ds.tick) {
       const k = `${sid}:${ds.tick}`;
@@ -405,6 +417,7 @@ function bindWorkout() {
         const r = bb && blockRows(state, log, sid, bb)[ds.i];
         if (bb && bb.ex && r && r.w) state.lastW[bb.ex.id] = { w: Number(r.w), r: Number(r.r) || 0 };
         startRest(Number(ds.rest) || 90);
+        if (sid === 'free' && !freeLog(log).startedAt && !freeLog(log).done) freeLog(log).startedAt = Date.now();
       }
     } else if (ds.stype) {
       const rows = editRows(log, sid, blk(ds.stype));
@@ -449,19 +462,21 @@ function bindWorkout() {
     const el = e.target;
     const t = todayInfo();
     const ds = el.dataset;
+    const sid = wkSid(t);
     if (ds.sw || ds.sr) {
       const bkey = ds.sw || ds.sr;
-      const b = sessionWithExtras(state, t.date, t.sid, t.log).blocks.find((x) => x.key === bkey);
+      const b = sessionWithExtras(state, t.date, sid, t.log).blocks.find((x) => x.key === bkey);
       if (!b) return;
       const v = el.value === '' ? null : Number(el.value);
-      const row = blockRows(state, t.log, t.sid, b)[ds.i];
+      const row = blockRows(state, t.log, sid, b)[ds.i];
       if (ds.sr && row.plus) {
-        t.log.amrap[`${t.sid}:${bkey}:${ds.i}`] = v || undefined;
+        t.log.amrap[`${sid}:${bkey}:${ds.i}`] = v || undefined;
         snapshot(t.date, t.log); save(); render();
         return;
       }
-      editRows(t.log, t.sid, b)[ds.i][ds.sw ? 'w' : 'r'] = v;
+      editRows(t.log, sid, b)[ds.i][ds.sw ? 'w' : 'r'] = v;
       snapshot(t.date, t.log); save();
+      if (sid === 'free') updateFreeStats();
     } else if (el.dataset.test) {
       state.tests[t.pos.cycle] = { ...(state.tests[t.pos.cycle] || {}), [el.dataset.test]: Number(el.value) || undefined };
       snapshot(t.date, t.log); save();
