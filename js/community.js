@@ -9,6 +9,24 @@ ICONS.square = svgI('<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5
 const comm = { mode: 'hot', topic: null, posts: [], liked: new Set(), following: new Set(), trending: [], comments: {}, loading: false, loaded: false, more: true, error: '', draft: null, viewing: null };
 const BUCKET = 'post-images';
 const TOPIC_SUGGEST = ['今日训练', '卧推', '深蹲', '硬拉', '531', '增肌', '减脂', '饮食打卡'];
+/* My own topics (state.myTopics): shown in the topic bar and the composer. Same rule as the server: no spaces or #, ≤ 20 chars. */
+const cleanTopic = (s) => String(s || '').replace(/[#\s]/g, '').slice(0, 20);
+const myTopics = () => state.myTopics || [];
+function addMyTopic(t) {
+  t = cleanTopic(t);
+  if (!t) return null;
+  state.myTopics = [t, ...myTopics().filter((x) => x !== t)].slice(0, 20);
+  save();
+  return t;
+}
+function openTopicAdd(fromCompose) {
+  if (fromCompose) readDraft();
+  openSheet('添加话题', `<input id="tpInput" maxlength="20" placeholder="如：卧推120挑战、晨练打卡">
+    <p class="muted small">不能有空格和 #，最多 20 个字。添加后会保存在「我的话题」里${fromCompose ? '，并插入到正在写的动态' : '，点它就能看话题下的动态'}。</p>
+    <button class="btn block" data-tpsave="${fromCompose ? 'compose' : 'bar'}">添加</button>
+    ${myTopics().length ? `<h3>我的话题</h3><div class="chips">${myTopics().map((t) => `<span class="chip tp-mine">#${esc(t)}#<button data-tpdel="${esc(t)}" aria-label="删除话题">×</button></span>`).join('')}</div>` : ''}`,
+  { type: 'cmtopic', fromCompose, reopen: () => openTopicAdd(fromCompose) });
+}
 const PAGE = 20;
 const isMissingTable = (e) => e && (/42P01|PGRST20[25]/.test(e.code || '') || /does not exist|schema cache|Could not find the (table|function)/i.test(e.message || ''));
 
@@ -152,7 +170,11 @@ function communityHtml() {
       <button class="btn block" data-cmact="reload">重新加载</button></div>`;
   }
   const tabs = `<div class="utabs left cm-tabs">${[['hot', '热门'], ['follow', '关注'], ['new', '最新']].map(([k, l]) => `<button data-cmmode="${k}" class="${comm.mode === k && !comm.topic ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-  const topics = comm.trending.length ? `<div class="cm-trend"><span>🔥 热门话题</span>${comm.trending.map((t, i) => `<button data-cmtopic="${esc(t.topic)}" class="${comm.topic === t.topic ? 'on' : ''}"><i>${i + 1}</i>#${esc(t.topic)}#<small>${t.posts}</small></button>`).join('')}</div>` : '';
+  const hot = comm.trending.map((t) => t.topic);
+  const mineOnly = myTopics().filter((t) => !hot.includes(t));
+  const topics = `<div class="cm-trend"><span>🔥 热门话题</span>${comm.trending.map((t, i) => `<button data-cmtopic="${esc(t.topic)}" class="${comm.topic === t.topic ? 'on' : ''}"><i>${i + 1}</i>#${esc(t.topic)}#<small>${t.posts}</small></button>`).join('')}
+    ${mineOnly.map((t) => `<button data-cmtopic="${esc(t)}" class="mine${comm.topic === t ? ' on' : ''}">#${esc(t)}#</button>`).join('')}
+    <button class="add" data-cmact="add-topic" aria-label="添加话题">＋ 话题</button></div>`;
   const topicHead = comm.topic ? `<div class="card cm-topic-head"><div class="grow"><b>#${esc(comm.topic)}#</b><div class="muted small">话题下的全部动态</div></div>
     <button class="btn small" data-cmact="post-topic">参与话题</button><button class="icon-round" data-cmact="clear-topic" aria-label="退出话题">${ICONS.close}</button></div>` : '';
   let list;
@@ -182,7 +204,8 @@ function openCompose(prefill = '') {
   openSheet('发动态', `<textarea id="cmText" rows="5" maxlength="2000" placeholder="分享你的训练、饮食和感受… 用 #话题# 参与讨论">${esc(d.text)}</textarea>
     <div class="cm-pick">${d.urls.map((u, i) => `<span class="cm-thumb"><img src="${u}" alt=""><button data-cmrm="${i}" aria-label="删除图片">×</button></span>`).join('')}
       ${d.files.length < 9 ? `<label class="cm-add">＋<span>照片</span><input type="file" id="cmFile" accept="image/*" multiple hidden></label>` : ''}</div>
-    <div class="chips">${TOPIC_SUGGEST.map((x) => `<button class="chip" data-cmins="#${x}#">#${x}#</button>`).join('')}</div>
+    <div class="chips">${[...new Set(myTopics().concat(comm.trending.map((t) => t.topic).slice(0, 6), TOPIC_SUGGEST))].map((x) => `<button class="chip${myTopics().includes(x) ? ' mine' : ''}" data-cmins="#${esc(x)}#">#${esc(x)}#</button>`).join('')}
+      <button class="chip add" data-cmact="add-topic-compose">＋ 自定义话题</button></div>
     ${res ? '<button class="btn ghost block" data-cmact="insert-workout">📋 插入今天的训练</button>' : ''}
     <button class="btn block big" data-cmact="publish" id="cmPublish">发布</button>
     <p class="muted small">所有登录用户都能看到你的动态。请勿发布他人隐私或违规内容。发布即表示同意<a href="terms.html" target="_blank">《用户协议》</a>。</p>`, { type: 'cmnew', reopen: () => openCompose() });
@@ -334,6 +357,7 @@ function communityClick(b) {
   else if (ds.cmact === 'reload') { comm.error = ''; reloadCommunity(); }
   else if (ds.cmact === 'more') loadCommunity(true);
   else if (ds.cmact === 'compose') openCompose();
+  else if (ds.cmact === 'add-topic') openTopicAdd(false);
   else if (ds.cmact === 'post-topic') openCompose(`#${comm.topic}# `);
   else if (ds.cmlike) toggleLike(ds.cmlike);
   else if (ds.cmopen) openPost(ds.cmopen);
@@ -357,7 +381,18 @@ function bindCommunity() {
     const b = e.target.closest('button');
     if (!b) return;
     const ds = b.dataset;
+    if (sheetCtx.type === 'cmtopic') {
+      if (ds.tpdel) { state.myTopics = myTopics().filter((x) => x !== ds.tpdel); save(); render(); return refreshSheet(); }
+      if (!ds.tpsave) return;
+      const t = addMyTopic($('#tpInput').value);
+      if (!t) return toast('请输入话题名称');
+      render();
+      if (ds.tpsave === 'compose') { comm.draft.text = `${comm.draft.text}${comm.draft.text && !/\s$/.test(comm.draft.text) ? ' ' : ''}#${t}# `; return openCompose(); }
+      closeSheet(); comm.topic = t; reloadCommunity(); window.scrollTo(0, 0);
+      return toast(`已添加话题 #${t}#`);
+    }
     if (sheetCtx.type === 'cmnew') {
+      if (ds.cmact === 'add-topic-compose') return openTopicAdd(true);
       if (ds.cmins) {
         const ta = $('#cmText'), pos = ta.selectionStart ?? ta.value.length;
         ta.value = `${ta.value.slice(0, pos)}${ds.cmins} ${ta.value.slice(pos)}`; ta.focus();
@@ -389,5 +424,9 @@ function bindCommunity() {
     files.forEach((f) => { comm.draft.files.push(f); comm.draft.urls.push(URL.createObjectURL(f)); });
     refreshSheet();
   });
-  $('#sheet').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'cmReply' && sheetCtx) sendComment(sheetCtx.id); });
+  $('#sheet').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !sheetCtx) return;
+    if (e.target.id === 'cmReply') sendComment(sheetCtx.id);
+    if (e.target.id === 'tpInput') $('[data-tpsave]').click();
+  });
 }
