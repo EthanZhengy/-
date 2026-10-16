@@ -330,7 +330,7 @@ function bindCloud() {
   });
   // account buttons live on the 我的 page and on the questionnaire's welcome step
   document.addEventListener('click', (e) => {
-    const b = e.target.closest('#view-me button, #view-wizard button, #view-friends button');
+    const b = e.target.closest('#view-me button, #view-wizard button, #view-friends button, #view-market button');
     if (!b || !cloud.client) return;
     const a = b.dataset.act;
     if (a === 'login') openLoginSheet();

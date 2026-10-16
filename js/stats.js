@@ -16,8 +16,12 @@ const SET_TYPE_ORDER = ['work', 'warm', 'drop', 'fail'];
 
 /** buildSession + the exercises the user added to this day. sid 'free' = a free workout with only added exercises. */
 function sessionWithExtras(st, date, sid, log) {
-  const s = sid === 'free' ? { pos: null, blocks: [], notes: [], sessionId: 'free' }
-    : buildSession(st, date, sid, { readiness: log.readiness, swaps: (log.swaps || {})[sid] || {} });
+  let s;
+  if (sid === 'free') s = { pos: null, blocks: [], notes: [], sessionId: 'free' };
+  else if (isCustomDay(sid)) {
+    const d = customDay(st, sid);
+    s = d && { pos: position(st, date), blocks: [], notes: [], sessionId: sid, custom: d };
+  } else s = buildSession(st, date, sid, { readiness: log.readiness, swaps: (log.swaps || {})[sid] || {} });
   if (!s) return s;
   if (sid !== 'free') templateBlocks(st, date, sid, log, s);
   ((log.extra || {})[sid] || []).forEach((e) => s.blocks.push({
@@ -26,8 +30,14 @@ function sessionWithExtras(st, date, sid, log) {
   return s;
 }
 
+/* Training days the user added to a plan (e.g. 第三推): state.customDays[program] = [{ id: 'cd_…', name, ref }].
+ * Their exercises live in state.tplEx[id]; 'ref' is the plan session whose main lift 'follow' exercises copy. */
+const isCustomDay = (sid) => String(sid).startsWith('cd_');
+const customDay = (st, sid) => Object.values(st.customDays || {}).flat().find((d) => d.id === sid);
+
 /** Current 1RM-equivalent of a session's main lift; custom template exercises are scaled from it. */
 function sessionRef(st, date, sid) {
+  if (isCustomDay(sid)) { const d = customDay(st, sid); return d ? sessionRef(st, date, d.ref) : 0; }
   const pos = position(st, date);
   if (!pos || !SESSIONS[sid]) return 0;
   if (programOfSession(sid) === 'mike') return mikeMax(st, pos.cycle, sid === 'mike2' ? 'cg' : 'bench');
@@ -43,7 +53,8 @@ function sessionRef(st, date, sid) {
 function templateBlocks(st, date, sid, log, s) {
   const list = (st.tplEx || {})[sid] || [];
   const pick = (log.tplPick || {})[sid];
-  const main = s.blocks.find((b) => b.type === 'main');
+  const refSess = s.custom ? buildSession(st, date, s.custom.ref, {}) : s;
+  const main = refSess && refSess.blocks.find((b) => b.type === 'main');
   const ref = list.some((e) => e.follow) ? sessionRef(st, date, sid) : 0;
   list.filter((e) => !pick || pick.includes(e.k)).forEach((e) => {
     const b = { key: `t${e.k}`, type: 'sets', ex: e, tpl: true, title: `模板 · ${e.name}`, sets: e.sets || 3, reps: String(e.reps || 10) };
@@ -85,13 +96,14 @@ function blockRows(st, log, sid, b) {
   return rows;
 }
 
-/** Sets / volume of a free workout (only ticked sets count; warm-ups excluded). */
-function freeSummary(st, date, log) {
-  const s = sessionWithExtras(st, date, 'free', log);
+/** Sets / volume of a free workout or custom day (only ticked sets count; warm-ups excluded). */
+function freeSummary(st, date, log, sid = 'free') {
+  const s = sessionWithExtras(st, date, sid, log);
   let sets = 0, done = 0, volume = 0;
+  if (!s) return { exercises: 0, sets, done, volume, names: [] };
   s.blocks.forEach((b) => {
-    const ticks = (log.sets || {})[`free:${b.key}`] || [];
-    blockRows(st, log, 'free', b).forEach((r, i) => {
+    const ticks = (log.sets || {})[`${sid}:${b.key}`] || [];
+    blockRows(st, log, sid, b).forEach((r, i) => {
       sets++;
       if (!ticks[i]) return;
       done++;
@@ -272,5 +284,5 @@ function personalRecords(st, hist) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { summarizeSession, sessionWithExtras, sessionRef, freeSummary, blockRows, SET_TYPES, SET_TYPE_ORDER, trainingHistory, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords, exerciseCounts };
+  module.exports = { summarizeSession, sessionWithExtras, sessionRef, isCustomDay, customDay, freeSummary, blockRows, SET_TYPES, SET_TYPE_ORDER, trainingHistory, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords, exerciseCounts };
 }

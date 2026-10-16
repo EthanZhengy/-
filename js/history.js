@@ -77,6 +77,7 @@ function renderHistory() {
       const l = state.logs[dateKey(date)];
       const label = `${fmtDate(date)} ${WEEKDAYS[weekdayIdx(date)]}`;
       if (l && l.done && SESSIONS[l.session]) return { cls: l.offline ? 'off' : 'app', tip: `${label} · ${sessionName(l.session, (w % progOf().weeks) + 1)} · ${l.offline ? 'App 外完成' : 'App 完成'}` };
+      if (l && l.done && l.result && l.result.custom) return { cls: 'app', tip: `${label} · ${l.result.title}` };
       if (l && l.free && l.free.done) return { cls: 'app', tip: `${label} · ${l.free.title || '自由训练'}` };
       if (dayDiff(today, date) > 0) return { cls: 'future' };
       return { cls: 'none', tip: `${label} · 无训练` };

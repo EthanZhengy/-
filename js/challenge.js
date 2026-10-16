@@ -73,6 +73,7 @@ function renderChallenge() {
   }).length;
   const C = 2 * Math.PI * 42;
   let html = `<div class="page-head"><h1>挑战</h1><button class="pill-btn big" data-act="switch-program">切换计划</button></div>
+    <button class="card mk-entry" data-act="market"><span class="mk-entry-ic">🏆</span><span class="grow"><b>大神方案</b><span class="muted small">看看别人怎么练，一键加入自己的训练模板</span></span><span class="muted">›</span></button>
     <div class="card challenge-hero">
       <div class="ring big r-main"><div class="ring-fig"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/>
         <circle class="val" cx="50" cy="50" r="42" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - weeksDone / P.weeks)).toFixed(1)}" transform="rotate(-90 50 50)"/></svg>
@@ -127,6 +128,7 @@ function bindChallenge() {
     const a = b?.dataset.act;
     if (a === 'edit-lifts') startWizard(true, null, 'lifts');
     else if (a === 'switch-program') openProgramPicker();
+    else if (a === 'market') openMarket();
     else if (a === 'postpone' && confirm('把整个计划往后推一周？（本周重新按当前这一周的内容练）')) { state.startDate = dateKey(addDays(parseKey(state.startDate), 7)); save(); render(); toast('已顺延一周'); }
     else if (a === 'advance' && confirm('把计划往前调一周？（相当于跳到下一周）')) { state.startDate = dateKey(addDays(parseKey(state.startDate), -7)); save(); render(); }
   });

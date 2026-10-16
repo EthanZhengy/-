@@ -252,6 +252,7 @@ function bindSheet() {
 
 function snapshot(date, log) {
   if (log.done && !log.offline && SESSIONS[log.session]) log.result = summarizeSession(state, date, log.session, log);
+  else if (log.done && isCustomDay(log.session)) log.result = { ...freeSummary(state, date, log, log.session), title: sessionName(log.session), custom: true };
   else delete log.result;
   postActivity(date, log); // share the day's workout with friends (no-op when signed out)
 }

@@ -593,3 +593,38 @@ body[data-mode=friends] { padding-bottom: calc(90px + env(safe-area-inset-bottom
 .cm-vcount { position: absolute; top: calc(16px + env(safe-area-inset-top)); left: 0; right: 0; text-align: center; color: #fff; font-size: 14px; }
 .cm-vprev, .cm-vnext { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; border: 0; background: rgba(255,255,255,.12); color: #fff; font-size: 30px; cursor: pointer; }
 .cm-vprev { left: 6px; border-radius: 0 12px 12px 0; } .cm-vnext { right: 6px; border-radius: 12px 0 0 12px; }
+
+/* 自定义训练日 & 大神方案 */
+.tpl-row.custom { background: color-mix(in srgb, var(--primary-soft) 55%, var(--card-2)); }
+.tpl-tag { font-size: 11px; color: var(--primary); background: var(--card); border-radius: 6px; padding: 1px 6px; margin-left: 2px; }
+.tpl-foot { gap: 8px; }
+.tpl-foot .btn { margin-top: 8px; }
+.mk-entry { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; text-align: left; color: var(--text); cursor: pointer; }
+.mk-entry .grow { display: flex; flex-direction: column; gap: 2px; }
+.mk-entry-ic { font-size: 30px; }
+.mk-h1 { font-size: 22px; margin: 0; }
+.mk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mk-card { border: 0; background: var(--card); border-radius: 18px; padding: 0; overflow: hidden; text-align: left; color: var(--text); cursor: pointer; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+.mk-cover { aspect-ratio: 3 / 2; background: linear-gradient(135deg, #ffd8a8, #ff922b); display: grid; place-items: center; font-size: 40px; overflow: hidden; }
+.mk-cover img { width: 100%; height: 100%; object-fit: cover; }
+.mk-body { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px 12px; }
+.mk-body b { font-size: 15px; line-height: 1.3; }
+.mk-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.mk-tags i { font-style: normal; font-size: 11px; color: #c2410c; background: #fff1e6; border-radius: 6px; padding: 1px 6px; }
+.mk-stats { display: flex; gap: 10px; font-size: 12px; color: var(--muted); }
+.mk-stats .on { color: var(--primary); font-weight: 700; }
+.mk-author { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.mk-day h3 { margin: 14px 0 2px; }
+.mk-noimg { width: 54px; height: 36px; border-radius: 8px; background: var(--card-2); display: grid; place-items: center; flex: none; }
+.mk-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 16px 0 4px; }
+.mk-actions button { border: 0; background: var(--card-2); color: var(--text); border-radius: 14px; padding: 10px 0; font-size: 20px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.mk-actions button span { font-size: 12px; color: var(--muted); }
+.mk-actions button.on { background: var(--primary-soft); }
+.mk-actions button.on span { color: var(--primary); font-weight: 700; }
+.mk-tip { background: #fff; color: #111; border-radius: 20px; padding: 18px; max-width: 320px; text-align: center; }
+.mk-tip img { width: 100%; border-radius: 12px; margin: 10px 0; }
+.mk-tip p { font-size: 13px; color: #666; margin: 0; }
+.mk-tipset { gap: 10px; align-items: center; }
+.mk-tipset img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; }
+@media (prefers-color-scheme: dark) { .mk-tags i { background: #3a2412; color: #ffb37a; } }
+.tpl-head .btn { white-space: nowrap; flex: none; }

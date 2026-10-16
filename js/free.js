@@ -145,12 +145,22 @@ function openTemplates() {
         <div class="small">${esc(preview)}</div></button>
       <button class="tpl-add" data-tpladd="${sid}" aria-label="给${sessionName(sid, pos.week)}添加动作">${ICONS.plus}</button></div>`;
   }).join('');
+  const days = state.customDays[state.program] || [];
+  const dayRows = days.map((d) => {
+    const ex = (state.tplEx[d.id] || []).map((e) => e.name);
+    const st = status(d.id);
+    return `<div class="tpl-row custom${t.sid === d.id ? ' on' : ''}"><button class="tpl-main" data-tpl="${d.id}">
+      <b>${esc(d.name)}</b> <span class="tpl-tag">自定义</span> <span class="tpl-st ${st}">${st === 'app' ? '✓ 已完成' : '可选'}</span>
+        <div class="muted small">${ex.length ? esc(ex.slice(0, 5).join(' · ')) : '还没有动作，点右边 ＋ 添加'}</div></button>
+      <button class="tpl-add" data-tpladd="${d.id}" aria-label="给${esc(d.name)}添加动作">${ICONS.plus}</button></div>`;
+  }).join('');
   const left = order.slice(0, requiredFor(pos.week)).filter((sid) => !['app', 'offline'].includes(status(sid)));
   openSheet('训练模板', `<div class="tpl-head row between"><div><b>${esc(progOf().name)}</b><div class="muted">第 ${pos.cycle + 1} 轮 · 第 ${pos.week} 周 ${esc(weekName(pos.week))} · 本周已练 ${doneN}/${requiredFor(pos.week)}</div></div>
       <button class="btn small ${left.length ? 'ghost' : ''}" data-tplact="next">进入下一周 ›</button></div>
     <p class="muted small">本周的训练不用按顺序，根据今天的状态自由选一个，这周练完就行。⭐ 是推荐。点 ＋ 可以往模板里加自己的动作。</p>
-    ${rows}
-    <button class="btn ghost block" data-tplact="switch">切换训练计划</button>`, { type: 'tpl', reopen: openTemplates });
+    ${rows}${dayRows}
+    <button class="btn ghost block" data-tplact="newday">＋ 新增训练日</button>
+    <div class="row tpl-foot"><button class="btn ghost grow" data-tplact="market">🏆 大神方案</button><button class="btn ghost grow" data-tplact="switch">切换训练计划</button></div>`, { type: 'tpl', reopen: openTemplates });
 }
 
 /* One template: plan exercises + the user's saved exercises (choose which to do today). */
@@ -162,19 +172,36 @@ function tplSelected(sid) {
 }
 function openTplDetail(sid) {
   const t = todayInfo();
-  const sess = buildSession(state, t.date, sid, {});
+  const day = isCustomDay(sid) && customDay(state, sid);
+  const sess = day ? { blocks: [] } : buildSession(state, t.date, sid, {});
   const mine = state.tplEx[sid] || [];
   const sel = tplSelected(sid);
   const ref = sessionRef(state, t.date, sid);
   const desc = (e) => (e.follow ? `跟随主项强度 · 1RM ≈ ${fmtW(Math.round(ref * e.ratio * 2) / 2)}kg` : `${e.sets} 组 × ${e.reps} 次`);
-  openSheet(sessionName(sid, t.pos.week), `<h3>计划动作</h3>
-    <div class="muted">${sess.blocks.map((b) => esc(b.title.replace(/^.*· /, ''))).join('、')}</div>
-    <h3>我加的动作 <span class="muted small">（勾选今天要练的）</span></h3>
+  openSheet(sessionName(sid, t.pos.week), `${day ? `<p class="muted">自定义训练日 · 跟随动作参考「${esc(sessionName(day.ref, t.pos.week))}」的主项强度 · 不计入每周必练</p>`
+    : `<h3>计划动作</h3><div class="muted">${sess.blocks.map((b) => esc(b.title.replace(/^.*· /, ''))).join('、')}</div>`}
+    <h3>${day ? '训练日的动作' : '我加的动作'} <span class="muted small">（勾选今天要练的）</span></h3>
     ${mine.map((e) => `<div class="tpl-ex"><button class="chk${sel.includes(e.k) ? ' on' : ''}" data-tpltog="${e.k}" aria-label="今天练${esc(e.name)}">✓</button>
       ${e.img ? `<img src="${exImgUrl(e.img)}" alt="">` : ''}<div class="grow"><b>${esc(e.name)}</b><div class="muted small">${desc(e)}</div></div>
       <button class="link" data-tpledit="${e.k}">编辑</button></div>`).join('') || '<p class="muted">还没有。比如在卧推日加「哑铃推肩」，以后每周都可以选。</p>'}
     <button class="btn ghost block" data-tpladd="${sid}">＋ 添加动作到模板</button>
-    <button class="btn block big" data-tplgo="${sid}">开始训练</button>`, { type: 'tpl', sid, reopen: () => openTplDetail(sid) });
+    <button class="btn block big" data-tplgo="${sid}">开始训练</button>
+    ${day ? `<div class="row"><button class="btn ghost grow" data-tplday="${sid}">编辑训练日</button><button class="btn ghost grow" data-tplact="publish-one" data-sid="${sid}">发布为方案</button></div>` : ''}`, { type: 'tpl', sid, reopen: () => openTplDetail(sid) });
+}
+
+/* Add / rename a custom training day (e.g. 第三推) */
+const CN_NUM = ['一', '二', '三', '四', '五', '六', '七', '八'];
+function openDayForm(id) {
+  const t = todayInfo();
+  const order = orderFor(t.pos.week);
+  const days = state.customDays[state.program] || [];
+  const d = id ? customDay(state, id) : { name: isMike() ? `第${CN_NUM[order.length + days.length] || days.length + 3}推` : `加练日 ${days.length + 1}`, ref: order[0] };
+  openSheet(id ? '编辑训练日' : '新增训练日', `<label>名称</label><input id="cdName" maxlength="16" value="${esc(d.name)}" placeholder="如：第三推（肩）">
+    <label>「跟随主项强度」的动作参考哪个训练日的主项</label>
+    <div class="chips">${order.map((s) => chip(sessionName(s, t.pos.week), `data-cdref="${s}"`, d.ref === s)).join('')}</div>
+    <p class="muted">自定义训练日每周可练可不练，不影响本周进度。建好后点 ＋ 往里面加动作。</p>
+    <button class="btn block" data-cdsave="${id || ''}">保存</button>
+    ${id ? '<button class="btn danger block" data-cddel="1">删除这个训练日</button>' : ''}`, { type: 'tpl', dayForm: id || 'new', ref: d.ref });
 }
 
 /* Add / edit a template exercise */
@@ -187,7 +214,7 @@ function openTplForm(sid, k) {
   const d = tplDraft;
   const t = todayInfo();
   const ref = sessionRef(state, t.date, sid);
-  const mainName = sessionName(sid, t.pos.week).replace(/日$/, '');
+  const mainName = sessionName(isCustomDay(sid) ? customDay(state, sid).ref : sid, t.pos.week).replace(/日$/, '');
   openSheet(k ? '编辑模板动作' : `添加到${sessionName(sid, t.pos.week)}`, `
     <label>动作名称</label>
     <div class="row tf-name">${d.img ? `<img src="${exImgUrl(d.img)}" alt="">` : ''}<input id="tfName" maxlength="24" placeholder="如：哑铃推肩" value="${esc(d.name)}"><button class="btn small ghost" data-tfpick>从动作库选</button></div>
@@ -273,7 +300,7 @@ function homeFreeHtml(t) {
 function freeHistoryHtml() {
   const rows = Object.keys(state.logs).sort().reverse().filter((k) => {
     const l = state.logs[k];
-    return (l.free && l.free.done && l.free.result) || (l.cardio && l.cardio.length);
+    return (l.free && l.free.done && l.free.result) || (l.cardio && l.cardio.length) || (l.done && l.result && l.result.custom);
   }).slice(0, 30).map((k) => {
     const l = state.logs[k];
     const d = parseKey(k);
@@ -284,13 +311,18 @@ function freeHistoryHtml() {
       h += `<div class="hist"><div class="row between"><span><b>${esc(r.title)}</b> ${date}</span>${BADGE.app}</div>
         <div class="muted">${esc(r.names.slice(0, 4).join('、'))}${r.names.length > 4 ? ' 等' : ''} · ${r.done} 组 · ${(r.volume / 1000).toFixed(2)} 吨 · ${r.minutes} 分钟</div></div>`;
     }
+    if (l.done && l.result && l.result.custom) {
+      const r = l.result;
+      h += `<div class="hist"><div class="row between"><span><b>${esc(r.title)}</b> ${date}</span>${BADGE.app}</div>
+        <div class="muted">${esc(r.names.slice(0, 4).join('、'))}${r.names.length > 4 ? ' 等' : ''} · ${r.done} 组 · ${(r.volume / 1000).toFixed(2)} 吨</div></div>`;
+    }
     (l.cardio || []).forEach((c) => {
       h += `<div class="hist"><div class="row between"><span><b>${esc(cardioName(c.kind))}</b> ${date}</span><span class="muted">${c.kcal} 千卡</span></div>
         <div class="muted">${c.min} 分钟${c.km ? ` · ${c.km} 公里` : ''}</div></div>`;
     });
     return h;
   }).join('');
-  return rows ? `<div class="card"><h2>自由训练与有氧</h2>${rows}</div>` : '';
+  return rows ? `<div class="card"><h2>自选训练与有氧</h2>${rows}</div>` : '';
 }
 
 function bindFree() {
@@ -328,12 +360,34 @@ function bindFree() {
         save(); render(); refreshSheet();
         return toast(`已进入第 ${position(state, new Date()).week} 周`);
       }
+      if (ds.tplact === 'newday') return openDayForm(null);
+      if (ds.tplact === 'market') { closeSheet(); return openMarket(); }
+      if (ds.tplact === 'publish-one') { closeSheet(); return openPublishPlan([ds.sid]); }
+      if (ds.tplday) return openDayForm(ds.tplday);
+      if (ds.cdref) { sheetCtx.ref = ds.cdref; document.querySelectorAll('[data-cdref]').forEach((x) => x.classList.toggle('on', x === b)); return; }
+      if (ds.cdsave !== undefined) {
+        const name = $('#cdName').value.trim();
+        if (!name) return toast('请输入名称');
+        const list = state.customDays[state.program] = state.customDays[state.program] || [];
+        let id = ds.cdsave;
+        if (id) Object.assign(customDay(state, id), { name, ref: sheetCtx.ref });
+        else { id = `cd_${Date.now().toString(36)}`; list.push({ id, name, ref: sheetCtx.ref }); }
+        save(); render(); toast(`已保存：${name}`);
+        return ds.cdsave ? openTplDetail(id) : openTemplates();
+      }
+      if (ds.cddel && sheetCtx.dayForm && confirm('删除这个训练日？以前的训练记录不受影响。')) {
+        const id = sheetCtx.dayForm;
+        state.customDays[state.program] = (state.customDays[state.program] || []).filter((x) => x.id !== id);
+        delete state.tplEx[id];
+        save(); render(); return openTemplates();
+      }
       if (ds.tpl) { tplSel = {}; return openTplDetail(ds.tpl); }
       if (ds.tpladd) { tplDraft = null; return openTplForm(ds.tpladd, null); }
       if (ds.tpledit) return openTplForm(sheetCtx.sid, ds.tpledit);
       if (ds.tpltog) { toggle(tplSelected(sheetCtx.sid), ds.tpltog); return refreshSheet(); }
       if (!ds.tplgo) return;
       const sid = ds.tplgo;
+      if (isCustomDay(sid) && !tplSelected(sid).length) return toast('先添加动作，或勾选今天要练的动作');
       if (t.log.done && t.log.session !== sid) return toast(`今天已完成${sessionName(t.log.session, t.pos.week)}，先在训练页撤销完成再换`);
       t.log.session = sid;
       t.log.tplPick = { ...(t.log.tplPick || {}), [sid]: tplSelected(sid).slice() };
