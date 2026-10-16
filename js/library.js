@@ -10,7 +10,7 @@ function ensureExdb() {
   exdbState = 'loading';
   const s = document.createElement('script');
   s.src = `js/exdb.js?v=${APP_VERSION}`;
-  s.onload = () => { exdbState = 'ready'; if (typeof render === 'function') render(); if (sheetCtx && sheetCtx.type === 'pickex') refreshSheet(); };
+  s.onload = () => { exdbState = 'ready'; if (typeof render === 'function') render(); if (sheetCtx && sheetCtx.type === 'pickex') refreshSheet(); if (sheetCtx && sheetCtx.type === 'swap' && $('#swList')) $('#swList').innerHTML = swapListHtml(sheetCtx.key); };
   s.onerror = () => { exdbState = 'idle'; };
   document.head.appendChild(s);
 }

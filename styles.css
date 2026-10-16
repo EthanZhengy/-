@@ -739,3 +739,4 @@ body[data-mode=friends] { padding-bottom: calc(90px + env(safe-area-inset-bottom
 .swatch i { width: 26px; height: 26px; border-radius: 50%; display: block; }
 .swatch.on { border-color: var(--text); font-weight: 700; }
 .q-mine { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.pick-row.on { background: var(--primary-soft); border-radius: 12px; }

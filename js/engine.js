@@ -185,8 +185,9 @@ function hasEquip(st, e) {
 function allExercises(st) { return EXERCISES.concat(st.customEx || []); }
 function exById(st, id) { return allExercises(st).find((e) => e.id === id); }
 
-function candidates(st, slot) {
-  return allExercises(st).filter((e) => e.slot === slot && hasEquip(st, e) &&
+/** pickOnly = added by hand when swapping; used where chosen, never auto-scheduled (unless liked). */
+function candidates(st, slot, withPicked = false) {
+  return allExercises(st).filter((e) => e.slot === slot && hasEquip(st, e) && (withPicked || !e.pickOnly || st.favorites.includes(e.id)) &&
     !(e.avoid || []).some((i) => st.injuries.includes(i)) && !st.excluded.includes(e.id));
 }
 function nextDayLower(st, date) {
@@ -205,8 +206,8 @@ function scoreEx(st, e, sessionId, date) {
 function hash(str) { let h = 0; for (const c of str) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
 
 /** Exercises for a slot, best first. */
-function ranked(st, slot, sessionId, date) {
-  return candidates(st, slot)
+function ranked(st, slot, sessionId, date, withPicked = false) {
+  return candidates(st, slot, withPicked)
     .map((e) => ({ e, s: scoreEx(st, e, sessionId, date) }))
     .sort((a, b) => b.s - a.s || hash(a.e.id) - hash(b.e.id));
 }

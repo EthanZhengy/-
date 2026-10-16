@@ -306,7 +306,7 @@ function blockHtml(s, b, log, sid) {
   const ticks = log.sets[key(b.key)] || [];
   const rows = blockRows(state, log, sid, b);
   html += `<div class="card block"><div class="row between"><div><div class="muted small">${esc(b.title.split(' · ')[0])}</div><h2>${esc(b.title.split(' · ').slice(1).join(' · '))}</h2></div>
-    ${b.ex && !b.extra ? `<button class="btn tiny ghost" data-swap="${b.key}" data-slot="${b.slot}">换一个</button>` : b.sub ? `<span class="muted">${esc(b.sub)}</span>` : ''}</div>`;
+    ${b.ex && b.slot && !b.extra && !b.tpl ? `<button class="btn tiny ghost" data-swap="${b.key}" data-slot="${b.slot}">换一个</button>` : b.sub ? `<span class="muted">${esc(b.sub)}</span>` : ''}</div>`;
   if (b.ex && b.ex.img) html += `<div class="blk-photo"><img src="${exImgUrl(b.ex.img, 0)}" alt="" loading="lazy"><img src="${exImgUrl(b.ex.img, 1)}" alt="" loading="lazy"></div>`;
   if (b.ex && b.ex.cue) html += `<p class="cue">${esc(b.ex.cue)}</p>`;
   if (b.note) html += `<p class="cue">${esc(b.note)}</p>`;
@@ -339,6 +339,60 @@ function editRows(log, sid, b) {
   const k = `${sid}:${b.key}`;
   if (!log.sx[k]) log.sx[k] = blockRows(state, log, sid, b).map(() => ({}));
   return log.sx[k];
+}
+
+/* 「换一个」: choose a same-type alternative, or search the whole library. */
+let swapQ = '';
+function swapCtx() {
+  const t = todayInfo();
+  const s = sessionWithExtras(state, t.date, t.sid, t.log);
+  const b = s.blocks.find((x) => x.key === sheetCtx.key);
+  return { t, s, b };
+}
+function swapListHtml(key) {
+  const t = todayInfo();
+  const s = sessionWithExtras(state, t.date, t.sid, t.log);
+  const b = s.blocks.find((x) => x.key === key);
+  if (!b) return '';
+  const used = s.blocks.filter((x) => x.ex && x.key !== key).map((x) => x.ex.id);
+  const row = (it, note) => `<button class="pick-row${it.id === b.ex.id ? ' on' : ''}" data-swpick="${esc(it.id)}">${exArt(it, 'pick-art')}
+    <span class="grow">${esc(it.name)}${note ? `<span class="muted small"> · ${esc(note)}</span>` : ''}</span><span class="muted">${it.id === b.ex.id ? '当前' : '选择'}</span></button>`;
+  const q = swapQ.trim().toLowerCase();
+  if (q) {
+    const hits = libraryItems().filter((it) => it.name.toLowerCase().includes(q) || (it.en || '').toLowerCase().includes(q))
+      .filter((it, i, a) => a.findIndex((x) => x.id === it.id) === i && !used.includes(it.id)).slice(0, 60);
+    return hits.length ? hits.map((it) => row(it, (it.cats || []).map((c) => (LIB_CATS.find(([k]) => k === c) || [, ''])[1]).filter(Boolean).join('/'))).join('')
+      : `<p class="muted">没有找到「${esc(swapQ.trim())}」，换个关键词试试${exdbState === 'loading' ? '（动作库加载中…）' : ''}</p>`;
+  }
+  const list = ranked(state, b.slot, t.sid, t.date, true).map((x) => x.e).filter((x) => !used.includes(x.id));
+  return `<p class="muted small">同类替代 · ${SLOT_NAMES[b.slot] || ''}（按适合今天的程度排序，❤️ 是你喜欢的）</p>`
+    + list.map((e) => row(e, `${state.favorites.includes(e.id) ? '❤️ ' : ''}${e.reps || ''}`)).join('');
+}
+function openSwap(key) {
+  ensureExdb();
+  const t = todayInfo();
+  const b = sessionWithExtras(state, t.date, t.sid, t.log).blocks.find((x) => x.key === key);
+  if (!b) return;
+  const swapped = (t.log.swaps[t.sid] || {})[key];
+  openSheet(`替换：${b.ex.name}`, `<label class="search">${ICONS.search}<input id="swSearch" placeholder="搜索任意动作（中文或英文）" value="${esc(swapQ)}"></label>
+    <div id="swList">${swapListHtml(key)}</div>
+    ${swapped ? '<button class="btn ghost block" data-swreset="1">恢复系统推荐的动作</button>' : ''}`, { type: 'swap', key, reopen: () => openSwap(key) });
+}
+function applySwap(id) {
+  const { t, b } = swapCtx();
+  const sid = t.sid, key = sheetCtx.key;
+  if (!exById(state, id)) {
+    // picked from the full library: keep a copy so the planner can show it (never auto-scheduled)
+    const it = libraryItems().find((x) => x.id === id);
+    if (!it) return;
+    const { s: steps, sm, en, kind, cats, lift, ...keep } = it;
+    state.customEx = (state.customEx || []).concat({ ...keep, id, name: it.name.replace(/（单只重量）/, ''), slot: b.slot, m: it.m || 'custom',
+      eq: it.eq || [], reps: it.reps || '8-12', img: it.img || null, cue: it.cue || (steps && steps[0]) || '', db: !!it.pe, cats: it.cats, pickOnly: true });
+  }
+  t.log.swaps[sid] = { ...(t.log.swaps[sid] || {}), [key]: id };
+  delete t.log.sx[`${sid}:${key}`]; delete t.log.sets[`${sid}:${key}`];
+  snapshot(t.date, t.log); save(); closeSheet(); render();
+  toast(`已换成：${exById(state, id).name}`);
 }
 
 /* Exercise picker for 「添加动作」: same list as the 动作 tab. */
@@ -449,17 +503,8 @@ function bindWorkout() {
       toast('今天不练这个动作，模板里仍然保留');
     } else if (ds.restcfg) return openRestPicker(ds.restcfg);
     else if (ds.act === 'add-extra') return openPicker();
-    else if (ds.swap) {
-      const s = sessionWithExtras(state, t.date, sid, log);
-      const cur = s.blocks.find((x) => x.key === ds.swap);
-      const used = s.blocks.filter((x) => x.ex && x.key !== ds.swap).map((x) => x.ex.id);
-      const list = ranked(state, ds.slot, sid, t.date).map((x) => x.e).filter((x) => !used.includes(x.id));
-      if (list.length < 2) return toast('没有其他可替换的动作了');
-      const next = list[(list.findIndex((x) => x.id === cur.ex.id) + 1) % list.length];
-      log.swaps[sid] = { ...(log.swaps[sid] || {}), [ds.swap]: next.id };
-      delete log.sx[`${sid}:${ds.swap}`]; delete log.sets[`${sid}:${ds.swap}`];
-      toast(`已换成：${next.name}`);
-    } else if (ds.act === 'done') {
+    else if (ds.swap) { swapQ = ''; return openSwap(ds.swap); }
+    else if (ds.act === 'done') {
       log.session = sid; log.done = true; log.offline = false;
       stopRest();
       toast(`💪 ${doneLine()}`);
@@ -505,12 +550,21 @@ function bindWorkout() {
         if (it && pick.target === 'tpl') { pick.target = null; return tplPicked(it); }
         if (it) { addExtra(it); closeSheet(); render(); }
       }
+    } else if (sheetCtx.type === 'swap') {
+      if (ds.swpick) applySwap(ds.swpick);
+      else if (ds.swreset) {
+        const t = todayInfo();
+        const sw = { ...(t.log.swaps[t.sid] || {}) }; delete sw[sheetCtx.key]; t.log.swaps[t.sid] = sw;
+        delete t.log.sx[`${t.sid}:${sheetCtx.key}`]; delete t.log.sets[`${t.sid}:${sheetCtx.key}`];
+        snapshot(t.date, t.log); save(); closeSheet(); render(); toast('已恢复推荐动作');
+      }
     } else if (sheetCtx.type === 'rest' && ds.restset) {
       state.restPref[sheetCtx.rk] = Number(ds.restset);
       save(); closeSheet(); render();
     }
   });
   $('#sheet').addEventListener('input', (e) => {
+    if (e.target.id === 'swSearch' && sheetCtx && sheetCtx.type === 'swap') { swapQ = e.target.value; $('#swList').innerHTML = swapListHtml(sheetCtx.key); return; }
     if (e.target.id !== 'pxSearch' || !sheetCtx || sheetCtx.type !== 'pickex') return;
     pick.q = e.target.value;
     $('#pxList').innerHTML = pickListHtml();
