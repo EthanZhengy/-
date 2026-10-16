@@ -184,7 +184,7 @@ function relDay(k) {
 
 function renderFriends() {
   const root = $('#view-friends');
-  const head = `<div class="fr-head"><button class="icon-round" data-act="fr-back" aria-label="返回">${ICONS.back}</button><span class="grow"></span>
+  const head = `<div class="fr-head"><span class="grow"></span>
     ${socialReady() && social.me ? `<button class="fr-add" data-act="add-friend">${ICONS.addUser}添加朋友</button>` : ''}</div>`;
   const nav = `<nav class="fr-nav">${[['square', '社区', 'square'], ['contacts', '联系人', 'contacts'], ['feed', '朋友圈', 'feed'], ['privacy', '权限设置', 'gear']].map(([k, l, i]) =>
     `<button data-ftab="${k}" class="${social.tab === k ? 'on' : ''}">${ICONS[i]}<span>${l}</span>${k === 'contacts' && social.incoming.length ? `<i class="dot-badge">${social.incoming.length}</i>` : ''}</button>`).join('')}</nav>`;
@@ -199,7 +199,7 @@ function renderFriends() {
   } else if (!social.loaded) {
     body = `<div class="card center"><p class="muted">${social.error ? `加载失败：${esc(social.error)}` : '加载中…'}</p>${social.error ? '<button class="btn block" data-act="fr-reload">重试</button>' : ''}</div>`;
   } else body = { square: communityHtml, feed: feedHtml, contacts: contactsHtml, privacy: privacyHtml }[social.tab]();
-  root.innerHTML = head + body + (cloud.user ? nav : '');
+  root.innerHTML = head + (cloud.user ? nav : '') + body;
 }
 
 function feedHtml() {

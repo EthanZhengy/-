@@ -118,11 +118,11 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--primary); 
 /* ============ Floating tab bar + FAB ============ */
 .tabbar {
   position: fixed; z-index: 10; left: 12px; right: 92px; bottom: calc(14px + env(safe-area-inset-bottom));
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 6px; max-width: 560px;
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; padding: 6px; max-width: 560px;
   background: color-mix(in srgb, var(--card) 92%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border-radius: 34px; box-shadow: 0 6px 24px rgba(16, 24, 40, .12);
 }
-.tabbar button { border: 0; background: none; color: var(--text); border-radius: 26px; padding: 7px 0 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; }
+.tabbar button { position: relative; border: 0; background: none; color: var(--text); border-radius: 26px; padding: 7px 0 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; }
 .tabbar button .ic { width: 23px; height: 23px; }
 .tabbar button.active { background: var(--card-2); color: var(--primary); }
 .fab {
@@ -406,7 +406,6 @@ body.sheet-open .toast { bottom: auto; top: calc(16px + env(safe-area-inset-top)
 .or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 
 /* ============ 朋友 ============ */
-body[data-mode=friends] .tabbar, body[data-mode=friends] .fab { display: none; }
 body[data-mode=friends] { background: linear-gradient(180deg, #e9e8fb 0%, #f3eef6 45%, var(--bg) 100%) fixed; }
 @media (prefers-color-scheme: dark) { body[data-mode=friends] { background: linear-gradient(180deg, #1b1a33 0%, var(--bg) 60%) fixed; } }
 .fr-entry { border: 0; background: var(--card); color: var(--text); border-radius: 999px; padding: 8px 14px 8px 10px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; position: relative; box-shadow: var(--shadow); align-self: center; }
@@ -438,9 +437,11 @@ body[data-mode=friends] { background: linear-gradient(180deg, #e9e8fb 0%, #f3eef
 .fr-empty { padding: 28px 20px; }
 .fr-hero { font-size: 48px; margin-bottom: 6px; }
 .sec-title.sm { font-size: 16px; margin: 18px 4px 8px; }
-.fr-nav { position: fixed; z-index: 10; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--card); border-top: 1px solid var(--line); padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); }
+.fr-nav { position: sticky; top: 0; z-index: 9; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: color-mix(in srgb, var(--card) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-radius: 18px; padding: 6px; margin: 0 0 8px; box-shadow: var(--shadow); }
 .fr-nav button { border: 0; background: none; color: var(--text); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 13px; font-weight: 700; cursor: pointer; }
-.fr-nav button .ic { width: 28px; height: 28px; }
+.fr-nav button { flex-direction: row; justify-content: center; gap: 4px; padding: 8px 0; border-radius: 12px; }
+.fr-nav button .ic { width: 18px; height: 18px; }
+.fr-nav button.on { background: var(--primary-soft); }
 .fr-nav button.on { color: var(--primary); }
 body[data-mode=friends] { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
 .fr-nav button { position: relative; }
