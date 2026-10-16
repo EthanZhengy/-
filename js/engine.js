@@ -270,7 +270,7 @@ function buildSession(st, date, sessionId, opts = {}) {
     mainRows = rows.filter((x) => !x.extra).map((x) => ({ ...x, plus: false }));
   }
   if (r === 'great' && rows.some((x) => x.plus)) notes.push('状态好：带 "+" 的组可以多做几次，保留 1–2 次余力，不要力竭');
-  blocks.push({ key: 'main', type: 'main', title: `主项 · ${v.name}`, sub: `TM ${fmtW(roundTo(tm, 0.5))}kg`, rows: mainRows, lift });
+  blocks.push({ key: 'main', type: 'main', title: `主项 · ${v.name}`, sub: `TM ${fmtW(roundTo(tm, 0.5))}kg`, rows: mainRows, lift, img: EX_IMG[v.id] });
 
   // Secondary lift
   if (W.sec) {
@@ -281,7 +281,7 @@ function buildSession(st, date, sessionId, opts = {}) {
     if (r === 'tired') { sets = Math.min(sets, 3); pct = Math.max(40, pct - 10); notes.push('疲劳模式：第二主项减到 3 组、重量降 10%'); }
     if (r === 'short') sets = Math.min(sets, 3);
     const w = roundTo(tmFor(st, pos.cycle, pos.week, lift2) * pct / 100, incOf(st, v2));
-    blocks.push({ key: 'sec', type: 'sets', title: `第二主项 · ${v2.name}`, sub: `${pct}% TM`, w, sets, reps });
+    blocks.push({ key: 'sec', type: 'sets', title: `第二主项 · ${v2.name}`, sub: `${pct}% TM`, w, sets, reps, lift: lift2, img: EX_IMG[v2.id] });
   }
 
   // Pull / core slot
@@ -326,7 +326,7 @@ function buildTest(st, pos, lift, r) {
   if (r === 'tired') notes.unshift('⚠️ 状态不好不建议测极限，可以改天再测');
   return {
     pos, week: WEEKS[11], sessionId: lift, test: true, kind: isLower(lift) ? 'lower' : 'upper', notes,
-    blocks: [{ key: 'main', type: 'main', title: `${LIFT_NAMES[lift]}极限测试 · ${v.name}`, sub: `预估 1RM ≈ ${fmtW(roundTo(est, inc))}kg`, rows, lift, test: true }],
+    blocks: [{ key: 'main', type: 'main', title: `${LIFT_NAMES[lift]}极限测试 · ${v.name}`, img: EX_IMG[v.id], sub: `预估 1RM ≈ ${fmtW(roundTo(est, inc))}kg`, rows, lift, test: true }],
   };
 }
 
@@ -352,7 +352,8 @@ function buildMike(st, date, pos, sid, opts = {}) {
   const cg = mikeMax(st, pos.cycle, 'cg');
   const notes = [MIKE_WARMUP];
   const blocks = [];
-  const acc = (key, title, sets, reps, note, optional) => ({ key, type: 'sets', title, sets, reps, note, optional });
+  const ACC_CAT = { fly: 'chest', db: 'chest', machine: 'chest', dips: 'chest', pushdown: 'tri', ohext: 'tri', hammer: 'bi', curl: 'bi' };
+  const acc = (key, title, sets, reps, note, optional) => ({ key, type: 'sets', title, sets, reps, note, optional, cat: ACC_CAT[key] });
 
   if (W.test || sid === 'mikeTest') {
     const ladder = [[0, '8-10', '空杠热身'], [40, '5-8', '热身'], [60, '3-6', '热身'], [80, '1-2', '热身'], [92.5, 1, '90–95%'], [102.5, 1, '冲新极限']];
@@ -378,7 +379,7 @@ function buildMike(st, date, pos, sid, opts = {}) {
       blocks.push(main);
       const v = MIKE_VARIANTS[(st.mike && st.mike.variant) || 'pause'] || MIKE_VARIANTS.pause;
       const isPause = (st.mike && st.mike.variant || 'pause') === 'pause';
-      blocks.push({ key: 'var', type: 'sets', title: `五选一 · ${v.name}`, sub: '当天卧推重量的 80%', w: roundTo(w * 0.8, inc), sets: 3,
+      blocks.push({ key: 'var', type: 'sets', cat: 'chest', title: `五选一 · ${v.name}`, sub: '当天卧推重量的 80%', w: roundTo(w * 0.8, inc), sets: 3,
         reps: isPause ? String({ 1: 6, 2: 4, 3: 2 }[W.pause]) : '6', note: `${v.cue}${isPause ? ` 本周暂停 ${W.pause} 秒。` : ''}` });
       blocks.push(acc('db', '辅助 · 哑铃上斜 / 平板卧推', 4, '8-10', '哪个弱练哪个，二选一 · RPE 8'));
       blocks.push(acc('dips', '辅助 · 双杠', 4, '12', '有条件可以负重'));

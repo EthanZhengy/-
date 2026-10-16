@@ -56,14 +56,17 @@ function renderLibrary() {
   const shown = items.slice(0, q ? 120 : 400);
 
   const groups = EQ_FILTERS.filter(([k]) => k !== 'all').map(([k, label]) => [label, shown.filter((it) => itemEq(it) === k)]).filter(([, l]) => l.length);
+  const EQ_NAME = Object.fromEntries(EQ_FILTERS);
   const card = (it) => {
     const st = itemState(it);
     const n = counts[it.id];
-    return `<button class="ex-card${st.ex || st.missing || st.bad.length ? ' dim' : ''}" data-ex="${esc(it.id)}">
-      ${it.cue || it.s ? '<span class="ex-badge">讲解</span>' : ''}${n ? `<span class="ex-count">${n} 次</span>` : ''}
-      ${exArt(it)}
-      <span class="ex-name">${esc(it.name.replace(/（.*）/, ''))}</span>
-      <span class="ex-tags">${st.current ? '<i class="t-cur">当前主项</i>' : ''}${st.fav ? '<i>❤️</i>' : ''}${st.ex ? '<i>🚫</i>' : ''}${st.missing ? '<i>缺器械</i>' : ''}${st.bad.length ? `<i>不适合${st.bad.map((x) => INJURIES[x]).join('')}</i>` : ''}</span>
+    const tags = [st.current ? '<i class="t-cur">当前主项</i>' : '', st.fav ? '<i>❤️ 收藏</i>' : '', st.ex ? '<i>🚫 不练</i>' : '', st.missing ? '<i>缺器械</i>' : '', st.bad.length ? `<i>不适合${st.bad.map((x) => INJURIES[x]).join('')}</i>` : ''].join('');
+    return `<button class="ex-row${st.ex || st.missing || st.bad.length ? ' dim' : ''}" data-ex="${esc(it.id)}">
+      ${exArt(it, 'ex-thumb')}
+      <span class="ex-info"><b>${esc(it.name.replace(/（.*）/, ''))}</b>
+        <span class="muted small">${EQ_NAME[itemEq(it)] || '其他'}${n ? ` · 练过 ${n} 次` : ''}${it.cue || it.s ? ' · 有讲解' : ''}</span>
+        ${tags ? `<span class="ex-tags">${tags}</span>` : ''}</span>
+      <span class="ex-chev">${ICONS.chevron}</span>
     </button>`;
   };
 
@@ -74,10 +77,10 @@ function renderLibrary() {
       <nav class="lib-side">${LIB_CATS.map(([k, l]) => `<button data-cat="${k}" class="${!q && lib.cat === k ? 'on' : ''}">${l}</button>`).join('')}</nav>
       <div class="lib-main">
         <div class="eq-chips">${EQ_FILTERS.map(([k, l]) => `<button data-eqf="${k}" class="${lib.eq === k ? 'on' : ''}">${l}</button>`).join('')}</div>
-        <div class="utabs left">${[['all', '全部动作'], ['mine', '常用动作']].map(([k, l]) => `<button data-ltab="${k}" class="${lib.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+        <div class="seg lib-seg">${[['all', '全部动作'], ['mine', '常用动作']].map(([k, l]) => `<button data-ltab="${k}" class="${lib.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
         <div class="muted small">${q ? `搜索“${esc(lib.q.trim())}”` : LIB_CATS.find(([k]) => k === lib.cat)[1]} · ${items.length} 个动作${shown.length < items.length ? `（显示前 ${shown.length} 个，可搜索或筛选器械）` : ''}${exdbState === 'loading' ? ' · 动作库加载中…' : ''}</div>
         ${lib.cat === 'main' && !q ? '<p class="muted small">5/3/1 的四个主项及其替代动作。切换主项动作需要重新填写该动作的最大重量。</p>' : ''}
-        ${groups.map(([label, list]) => `<h3 class="grp">${label}</h3><div class="ex-grid">${list.map(card).join('')}</div>`).join('') || `<p class="muted empty">${lib.tab === 'mine' ? '还没有常用动作。练过或点 ❤️ 的动作会出现在这里。' : '没有符合条件的动作'}</p>`}
+        ${groups.map(([label, list]) => `<h3 class="grp">${label} <span class="muted">${list.length}</span></h3><div class="ex-list">${list.map(card).join('')}</div>`).join('') || `<p class="muted empty">${lib.tab === 'mine' ? '还没有常用动作。练过或点 ❤️ 的动作会出现在这里。' : '没有符合条件的动作'}</p>`}
         <p class="muted small center pad">动作图片来自公共领域的 free-exercise-db</p>
       </div></div>`;
 }

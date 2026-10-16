@@ -35,10 +35,10 @@ function startFree() {
   wkMode = 'free';
 }
 function freeStatsText(t) {
-  const r = freeSummary(state, t.date, t.log);
-  return `${r.done}/${r.sets} 组 · 容量 ${r.volume}kg`;
+  const w = workoutStats(sessionWithExtras(state, t.date, 'free', t.log), t.log, 'free');
+  return `<span><b>${w.done}</b>/${w.sets} 组</span><span><b>${w.exDone}</b>/${w.ex} 动作</span><span><b>${fmtKg(w.volDone)}</b>/${fmtKg(w.vol)} 容量</span>`;
 }
-function updateFreeStats() { const el = $('#fstats'); if (el) el.textContent = freeStatsText(todayInfo()); }
+function updateFreeStats() { const el = $('#fstats'); if (el) el.innerHTML = freeStatsText(todayInfo()); }
 // Tick the clocks on the free-workout screen and the home banner
 setInterval(() => {
   const f = state.logs[dateKey(new Date())] && state.logs[dateKey(new Date())].free;
@@ -55,10 +55,10 @@ function renderFree() {
         ${f.done ? '' : `<button class="icon-round" data-fact="timer" aria-label="${f.startedAt ? '暂停' : '开始'}计时">${f.startedAt ? FIC.pause : FIC.play}</button>`}</div>
         ${f.done ? '<button class="btn ghost" data-fact="resume">继续训练</button>' : '<button class="btn" data-fact="finish">完成</button>'}</div>
       <div class="row between"><button class="ftitle" data-fact="title">✎ ${f.title ? esc(f.title) : '<span class="muted">点击输入训练标题</span>'}</button>
-        <span class="muted small" id="fstats">${freeStatsText(t)}</span></div></div>
+        <span class="wk-stats" id="fstats">${freeStatsText(t)}</span></div></div>
     <div class="free-body">
       ${f.done ? `<div class="card center">${BADGE.app}<p>训练已完成 · 用时 ${fmtClock(freeElapsed(f))}</p></div>` : ''}
-      ${s.blocks.length ? s.blocks.map((b) => blockHtml(s, b, t.log, 'free')).join('')
+      ${s.blocks.length ? blocksHtml(s, t.log, 'free')
         : `<div class="free-empty"><p>还没有动作</p><p class="muted">点下方「加动作」从动作库选择，或用「训练模板」练今天计划里的主项。</p>
             <button class="btn" data-act="add-extra">＋ 加动作</button> <button class="btn ghost" data-fact="tpl">训练模板</button></div>`}
       ${f.note ? `<div class="card"><h3>训练心得</h3><p class="pre">${esc(f.note)}</p></div>` : ''}

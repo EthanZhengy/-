@@ -107,9 +107,11 @@ function exCat(ex, lift) {
 function freeSummary(st, date, log, sid = 'free') {
   const s = sessionWithExtras(st, date, sid, log);
   let sets = 0, done = 0, volume = 0;
-  if (!s) return { exercises: 0, sets, done, volume, names: [] };
+  if (!s) return { exercises: 0, sets, done, volume, names: [], cats: [], doneCats: [] };
+  const doneCats = [];
   s.blocks.forEach((b) => {
     const ticks = (log.sets || {})[`${sid}:${b.key}`] || [];
+    if (ticks.some(Boolean)) doneCats.push(b.cat || exCat(b.ex || {}, b.lift));
     blockRows(st, log, sid, b).forEach((r, i) => {
       sets++;
       if (!ticks[i]) return;
@@ -117,7 +119,7 @@ function freeSummary(st, date, log, sid = 'free') {
       if (r.t !== 'warm') volume += (Number(r.w) || 0) * (Number(r.r) || 0);
     });
   });
-  return { exercises: s.blocks.length, sets, done, volume: Math.round(volume), names: s.blocks.map((b) => b.ex.name), cats: s.blocks.map((b) => exCat(b.ex, b.lift)) };
+  return { exercises: s.blocks.length, sets, done, volume: Math.round(volume), names: s.blocks.map((b) => (b.ex ? b.ex.name : b.title.split(' · ').slice(1).join(' · ') || b.title)), cats: s.blocks.map((b) => b.cat || exCat(b.ex || {}, b.lift)), doneCats };
 }
 
 /**

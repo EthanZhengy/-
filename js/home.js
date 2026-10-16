@@ -280,8 +280,10 @@ function renderWorkout() {
   if (!t.pos || t.sid === 'rest') { currentView = 'home'; return render(); }
   const s = sessionWithExtras(state, t.date, t.sid, t.log);
   const doneToday = t.log.done && t.log.session === t.sid;
+  const w = workoutStats(s, t.log, t.sid);
   $('#view-workout').innerHTML = `<div class="wk-head"><button class="icon-round" data-act="back" aria-label="返回">${ICONS.back}</button>
-      <div class="grow"><b>${sessionName(t.sid, t.pos.week)}</b><div class="muted">第 ${t.pos.week} 周 · ${esc(weekName(t.pos.week))} · ${READINESS[t.log.readiness || 'normal'].label}</div></div></div>
+      <div class="grow"><b>${sessionName(t.sid, t.pos.week)}</b><div class="muted">第 ${t.pos.week} 周 · ${esc(weekName(t.pos.week))} · ${READINESS[t.log.readiness || 'normal'].label}</div></div>
+      <div class="wk-stats"><span><b>${w.done}</b>/${w.sets} 组</span><span><b>${w.exDone}</b>/${w.ex} 动作</span><span><b>${fmtKg(w.volDone)}</b>/${fmtKg(w.vol)} 容量</span></div></div>
     ${workoutHtml(s, t.log, t.sid, doneToday)}`;
 }
 
@@ -311,18 +313,62 @@ function setRowHtml(b, rows, r, i, done, key) {
   </div>${am ? `<div class="muted e1rm">估算 1RM ≈ ${fmtW(Math.round(epley(Number(r.w) || 0, Number(r.r)) * 2) / 2)}kg</div>` : ''}`;
 }
 
-function blockHtml(s, b, log, sid) {
-  const key = (k) => `${sid}:${k}`;
-  let html = '';
-  const ticks = log.sets[key(b.key)] || [];
+/* Exercise cards: collapsed to one line (photo, sets, progress dots, volume); tap to open the set rows. */
+let wkOpen; // key of the open card; undefined = first unfinished, '' = all closed
+const LIFT_CHAR = { press: '推', bench: '卧', squat: '蹲', deadlift: '拉' };
+function blockProgress(log, sid, b) {
   const rows = blockRows(state, log, sid, b);
-  html += `<div class="card block"><div class="row between"><div><div class="muted small">${esc(b.title.split(' · ')[0])}</div><h2>${esc(b.title.split(' · ').slice(1).join(' · '))}</h2></div>
-    ${b.ex && b.slot && !b.extra && !b.tpl ? `<button class="btn tiny ghost" data-swap="${b.key}" data-slot="${b.slot}">换一个</button>` : b.sub ? `<span class="muted">${esc(b.sub)}</span>` : ''}</div>`;
-  if (b.ex && b.ex.img) html += `<div class="blk-photo"><img src="${exImgUrl(b.ex.img, 0)}" alt="" loading="lazy"><img src="${exImgUrl(b.ex.img, 1)}" alt="" loading="lazy"></div>`;
-  if (b.ex && b.ex.cue) html += `<p class="cue">${esc(b.ex.cue)}</p>`;
-  if (b.note) html += `<p class="cue">${esc(b.note)}</p>`;
+  const ticks = log.sets[`${sid}:${b.key}`] || [];
+  let vol = 0, volDone = 0, done = 0;
+  rows.forEach((r, i) => {
+    const v = r.t === 'warm' ? 0 : (Number(r.w) || 0) * (Number(r.r) || Number(r.planR) || 0);
+    vol += v;
+    if (ticks[i]) { done++; volDone += v; }
+  });
+  return { rows, ticks, done, vol, volDone, full: rows.length > 0 && done >= rows.length };
+}
+function openBlockKey(s, log, sid) {
+  if (wkOpen !== undefined && (wkOpen === '' || s.blocks.some((b) => b.key === wkOpen))) return wkOpen;
+  const b = s.blocks.find((x) => !blockProgress(log, sid, x).full);
+  return b ? b.key : '';
+}
+function workoutStats(s, log, sid) {
+  const p = s.blocks.map((b) => blockProgress(log, sid, b));
+  return {
+    sets: p.reduce((a, x) => a + x.rows.length, 0), done: p.reduce((a, x) => a + x.done, 0),
+    ex: p.length, exDone: p.filter((x) => x.full).length,
+    vol: p.reduce((a, x) => a + x.vol, 0), volDone: p.reduce((a, x) => a + x.volDone, 0),
+  };
+}
+const fmtKg = (v) => (Math.round(v * 10) / 10).toFixed(1);
+function blockHtml(s, b, log, sid, open) {
+  const key = (k) => `${sid}:${k}`;
+  const pr = blockProgress(log, sid, b);
+  const { rows, ticks } = pr;
+  const name = b.title.split(' · ').slice(1).join(' · ') || b.title;
+  const img = (b.ex && b.ex.img) || b.img;
+  const kind = b.title.split(' · ')[0];
+  const thumb = img ? `<img src="${exImgUrl(img, 0)}" alt="" loading="lazy">` : `<i>${esc(LIFT_CHAR[b.lift] || name.slice(0, 1))}</i>`;
+  let html = `<div class="card wb${open ? ' open' : ''}${pr.full ? ' fin' : ''}">
+    <button class="wb-head" data-wbopen="${b.key}" aria-expanded="${open}">
+      <span class="wb-thumb">${thumb}</span>
+      <span class="wb-main"><span class="wb-kind">${esc(kind)}</span><b class="wb-name">${esc(name)}</b>
+        <span class="wb-sub">${rows.length} 组${b.sub ? ` · ${esc(b.sub)}` : ''}</span>
+        <span class="wb-dots">${rows.map((r, i) => `<i class="${ticks[i] ? 'on' : ''}${r.t === 'warm' ? ' w' : ''}"></i>`).join('')}</span></span>
+      <span class="wb-vol">${pr.vol ? `${fmtKg(pr.volDone)}<small>/${fmtKg(pr.vol)}</small>` : `${pr.done}<small>/${rows.length} 组</small>`}</span>
+      <span class="wb-chev">${ICONS.chevron}</span>
+    </button>`;
+  if (!open) return `${html}</div>`;
+  html += '<div class="wb-body">';
   const plan = b.tpl && b.rows ? `跟随主项强度 · 1RM ≈ ${fmtW(b.oneRM)}kg` : b.rows ? '' : `计划 ${b.w ? `${fmtW(b.w)}kg × ` : ''}${esc(b.reps)}${/[秒米]/.test(b.reps) ? '' : ' 次'} × ${b.sets} 组`;
-  html += `<div class="blk-tools"><span class="muted small">${plan}</span><button class="rest-chip" data-restcfg="${b.key}">⏱ 休息 ${fmtRest(restFor(b))}</button></div>`;
+  html += `<div class="blk-tools"><button class="rest-chip" data-restcfg="${b.key}">⏱ 休息 ${fmtRest(restFor(b))}</button>
+    ${b.ex && b.slot && !b.extra && !b.tpl ? `<button class="rest-chip alt" data-swap="${b.key}" data-slot="${b.slot}">⇄ 换一个</button>` : ''}
+    <span class="muted small grow right">${plan}</span></div>`;
+  if (img || (b.ex && b.ex.cue) || b.note) {
+    html += `<details class="wb-how"${b.note && !img ? ' open' : ''}><summary>动作要领</summary>
+      ${img ? `<div class="blk-photo"><img src="${exImgUrl(img, 0)}" alt="" loading="lazy"><img src="${exImgUrl(img, 1)}" alt="" loading="lazy"></div>` : ''}
+      ${b.ex && b.ex.cue ? `<p class="cue">${esc(b.ex.cue)}</p>` : ''}${b.note ? `<p class="cue">${esc(b.note)}</p>` : ''}</details>`;
+  }
   rows.forEach((r, i) => { html += setRowHtml(b, rows, r, i, ticks[i], key(b.key)); });
   html += `<div class="set-actions"><button data-addset="${b.key}">＋ 加一组</button>${rows.length > 1 ? `<button data-delset="${b.key}">－ 删一组</button>` : ''}${b.extra ? `<button class="danger" data-delex="${b.key}">移除动作</button>` : b.tpl ? `<button data-tploff="${b.key}">今天不练</button>` : ''}</div>`;
   if (b.test) {
@@ -330,13 +376,17 @@ function blockHtml(s, b, log, sid) {
     html += `<label>测得的新 1RM (kg)</label><input type="number" inputmode="decimal" step="0.5" data-test="${b.lift}" value="${val ?? ''}" placeholder="最后一次标准完成的重量">
       <p class="muted">填写后，下一轮的 TM 会按新 1RM × 90% 自动计算。</p>`;
   }
-  return `${html}</div>`;
+  return `${html}</div></div>`;
+}
+function blocksHtml(s, log, sid) {
+  const ok = openBlockKey(s, log, sid);
+  return s.blocks.map((b) => blockHtml(s, b, log, sid, b.key === ok)).join('');
 }
 
 function workoutHtml(s, log, sid, doneToday) {
   let html = '';
   if (s.notes.length) html += `<ul class="notes">${s.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>`;
-  s.blocks.forEach((b) => { html += blockHtml(s, b, log, sid); });
+  html += blocksHtml(s, log, sid);
   html += '<button class="btn ghost block" data-act="add-extra">＋ 添加动作</button>';
   html += doneToday
     ? `<div class="card center">${BADGE.app}<p>今天的训练已完成，记得吃练后餐。</p><button class="btn ghost block" data-act="undo-done">撤销完成</button></div>`
@@ -427,7 +477,9 @@ function addExtra(it) {
   const sid = wkSid(t);
   if (sid === 'free') freeLog(t.log).startedAt = freeLog(t.log).startedAt || (freeLog(t.log).elapsed ? null : Date.now());
   const list = t.log.extra[sid] = t.log.extra[sid] || [];
-  list.push({ k: Date.now().toString(36), id: it.id, name: it.name, img: it.img || null, cue: it.cue || (it.s && it.s[0]) || '', reps: String(firstInt(it.reps) || 10) });
+  const nk = Date.now().toString(36);
+  wkOpen = `x${nk}`; // open the new card
+  list.push({ k: nk, id: it.id, name: it.name, img: it.img || null, cue: it.cue || (it.s && it.s[0]) || '', reps: String(firstInt(it.reps) || 10) });
   snapshot(t.date, t.log); save();
   toast(`已加入今天的训练：${it.name}`);
 }
@@ -477,6 +529,14 @@ function bindWorkout() {
     const ds = b.dataset;
     if (ds.act === 'back') { currentView = 'home'; render(); return; }
     if (ds.fact) return freeAction(ds.fact, t);
+    if (ds.wbopen) {
+      const s = sessionWithExtras(state, t.date, sid, log);
+      wkOpen = openBlockKey(s, log, sid) === ds.wbopen ? '' : ds.wbopen;
+      render();
+      const el = document.querySelector(`[data-wbopen="${ds.wbopen}"]`);
+      if (el && wkOpen) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      return;
+    }
     const blk = (k) => sessionWithExtras(state, t.date, sid, log).blocks.find((x) => x.key === k);
     if (ds.tick) {
       const k = `${sid}:${ds.tick}`;
@@ -487,6 +547,8 @@ function bindWorkout() {
         const r = bb && blockRows(state, log, sid, bb)[ds.i];
         if (bb && bb.ex && r && r.w) state.lastW[bb.ex.id] = { w: Number(r.w), r: Number(r.r) || 0 };
         startRest(Number(ds.rest) || 90);
+        // last set of this exercise: open the next unfinished one
+        if (bb && blockProgress(log, sid, bb).full) wkOpen = undefined;
         if (sid === 'free' && !freeLog(log).startedAt && !freeLog(log).done) freeLog(log).startedAt = Date.now();
       }
     } else if (ds.stype) {

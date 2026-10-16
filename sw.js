@@ -1,4 +1,4 @@
-const CACHE = 'ianz-v34';
+const CACHE = 'ianz-v35';
 const ASSETS = ['./', 'index.html', 'styles.css', 'manifest.json', 'icons/icon.svg', 'icons/icon-192.png', 'icons/apple-touch-icon.png',
   'js/data.js', 'js/engine.js', 'js/stats.js', 'js/charts.js', 'js/core.js', 'js/quotes.js', 'assets/fonts/barlow-condensed-700.woff2', 'assets/fonts/barlow-condensed-800.woff2', 'js/vendor/supabase.js', 'js/config.js', 'js/cloud.js', 'js/wizard.js',
   'js/home.js', 'js/free.js', 'js/challenge.js', 'js/library.js', 'js/history.js', 'js/me.js', 'js/social.js', 'js/community.js', 'js/market.js', 'js/stories.js', 'js/push.js', 'js/photos.js', 'js/app.js'];
