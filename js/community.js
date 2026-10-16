@@ -109,7 +109,7 @@ async function toggleFollow(uid) {
   if (on) comm.following.delete(uid); else comm.following.add(uid);
   toast(on ? '已取消关注' : '已关注');
   if (comm.viewing && comm.viewing.uid === uid && comm.viewing.profile) comm.viewing.profile.followers += on ? -1 : 1;
-  render(); if (sheetCtx && sheetCtx.type === 'cmuser') refreshSheet();
+  render(); if (sheetCtx && ['cmuser', 'cmlist'].includes(sheetCtx.type)) refreshSheet();
 }
 
 /* ---------- photos ---------- */
@@ -251,7 +251,7 @@ async function openPost(id) {
   const cs = comm.comments[id];
   openSheet('动态详情', `${postHtml(p, { full: true })}
     <h3>评论 ${p.comment_count || ''}</h3>
-    <div class="cm-comments">${!cs ? '<p class="muted">加载中…</p>' : cs.length ? cs.map((c) => `<div class="cm-cmt">${avatarHtml(c.user_id, c.author_name, 'xs')}
+    <div class="cm-comments">${!cs ? '<p class="muted">加载中…</p>' : cs.length ? cs.map((c) => `<div class="cm-cmt"><button class="cm-av" data-cmuser="${c.user_id}">${avatarHtml(c.user_id, c.author_name, 'xs')}</button>
       <div class="grow"><b>${esc(c.author_name || '健身er')}</b> <span class="muted small">${relTime(c.created_at)}</span><div>${esc(c.body)}</div></div>
       ${c.user_id === cloud.user.id || p.user_id === cloud.user.id ? `<button class="link small" data-cmdelc="${c.id}">删除</button>` : ''}</div>`).join('') : '<p class="muted">还没有评论，来说两句吧。</p>'}</div>
     <div class="cm-reply"><input id="cmReply" maxlength="500" placeholder="写评论…"><button class="btn small" data-cmsend="${id}">发送</button></div>`, { type: 'cmpost', id, reopen: () => openPost(id) });
@@ -312,7 +312,10 @@ async function openUser(uid) {
   openSheet(pr ? pr.name || '健身er' : '主页', `<div class="cm-profile">${live ? `<button class="st-ring" data-st="${uid}">${avatarHtml(uid, pr ? pr.name : '?', 'lg')}</button>` : avatarHtml(uid, pr ? pr.name : '?', 'lg')}
       <div class="grow"><b>${esc(pr ? pr.name || '健身er' : '')}</b> ${statusChip(uid)}
         ${pr && pr.bio ? `<div class="muted small">${esc(pr.bio)}</div>` : ''}
-        <div class="cm-counts"><span><b>${pr ? pr.posts : '-'}</b>动态</span><span><b>${pr ? pr.followers : '-'}</b>粉丝</span><span><b>${pr ? pr.following : '-'}</b>关注</span></div></div>
+        <div class="cm-counts"><span><b>${pr ? pr.posts : '-'}</b>动态</span>
+          <button data-ulist="followers" data-uid="${uid}"><b>${pr ? pr.followers : '-'}</b>粉丝</button>
+          <button data-ulist="following" data-uid="${uid}"><b>${pr ? pr.following : '-'}</b>关注</button>
+          <span><b>${pr && pr.likes != null ? pr.likes : '-'}</b>获赞</span></div></div>
       ${me ? '<button class="btn small ghost" data-stact="edit-profile">编辑资料</button>' : `<button class="cm-follow${comm.following.has(uid) ? ' on' : ''}" data-cmfollow="${uid}">${comm.following.has(uid) ? '已关注' : '＋ 关注'}</button>`}</div>
     ${v.posts.length ? v.posts.map((p) => postHtml(p)).join('') : `<p class="muted center pad">${pr ? '还没有发过动态' : '加载中…'}</p>`}`, { type: 'cmuser', uid, reopen: () => openUser(uid) });
   if (!pr) {
@@ -320,12 +323,28 @@ async function openUser(uid) {
       cloud.client.rpc('community_profile', { uid }),
       cloud.client.from('posts').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(30),
     ]);
-    v.profile = (a.data && a.data[0]) || { name: '', posts: 0, followers: 0, following: 0 };
+    v.profile = (a.data && a.data[0]) || { name: '', posts: 0, followers: 0, following: 0, likes: 0 };
     if (a.data && a.data[0]) PEOPLE[uid] = { ...(PEOPLE[uid] || {}), ...a.data[0] };
     v.posts = b.data || [];
     await loadLikes(v.posts.map((p) => p.id));
     if (sheetCtx && sheetCtx.type === 'cmuser' && sheetCtx.uid === uid) refreshSheet();
   }
+}
+
+/* 粉丝 / 关注 lists */
+async function openFollowList(uid, kind) {
+  const title = kind === 'followers' ? '粉丝' : '关注';
+  const draw = (ids) => openSheet(title, ids == null ? '<p class="muted">加载中…</p>' : ids.length ? ids.map((id) => `<div class="fl-row">
+      <button class="cm-av" data-cmuser="${id}">${avatarHtml(id, (PEOPLE[id] || {}).name, 'sm')}</button>
+      <button class="fl-name" data-cmuser="${id}"><b>${esc((PEOPLE[id] || {}).name || '健身er')}</b> ${statusChip(id)}<span class="muted small">${esc((PEOPLE[id] || {}).bio || '')}</span></button>
+      ${id === cloud.user.id ? '<span class="muted small">我</span>' : `<button class="cm-follow${comm.following.has(id) ? ' on' : ''}" data-cmfollow="${id}">${comm.following.has(id) ? '已关注' : '＋ 关注'}</button>`}</div>`).join('')
+    : `<p class="muted center pad">${kind === 'followers' ? '还没有粉丝' : '还没有关注任何人'}</p>`, { type: 'cmlist', uid, kind, reopen: () => draw(ids) });
+  draw(null);
+  const q = kind === 'followers' ? cloud.client.from('follows').select('follower').eq('followee', uid) : cloud.client.from('follows').select('followee').eq('follower', uid);
+  const { data } = await q.order('created_at', { ascending: false }).limit(500);
+  const ids = (data || []).map((r) => r.follower || r.followee).filter((id) => !blocked().includes(id));
+  await fetchPeople(ids);
+  if (sheetCtx && sheetCtx.type === 'cmlist' && sheetCtx.uid === uid && sheetCtx.kind === kind) draw(ids);
 }
 
 /* Full-screen photo viewer */
@@ -364,6 +383,7 @@ function communityClick(b) {
   else if (ds.cmmore) openMore(ds.cmmore);
   else if (ds.cmfollow) toggleFollow(ds.cmfollow);
   else if (ds.cmuser) openUser(ds.cmuser);
+  else if (ds.ulist) openFollowList(ds.uid, ds.ulist);
   else return false;
   return true;
 }

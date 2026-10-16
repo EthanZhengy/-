@@ -4,7 +4,7 @@
  * Requires supabase/stories.sql. Public profile cards are cached in PEOPLE (social.js).
  */
 
-const story = { list: [], loaded: false, loading: false, draft: null, view: null };
+const story = { list: [], loaded: false, loading: false, draft: null, view: null, liked: new Set(), stats: {} };
 const STATUS_PRESETS = ['💪 增肌中', '🔥 减脂中', '🏆 备赛中', '📈 冲 PR 中', '🧘 恢复期', '🤕 养伤中', '✈️ 出差中', '😴 休息中'];
 const REPORT_REASONS = ['广告 / 引流', '色情低俗', '侮辱谩骂', '抄袭 / 盗图', '危险或错误的训练建议', '其他'];
 
@@ -101,6 +101,8 @@ async function loadStories() {
   if (error) { story.loaded = true; story.list = []; story.missing = isMissingTable(error); return; }
   story.list = (data || []).filter((s) => !(state.blocked || []).includes(s.user_id));
   story.loaded = true;
+  const lk = await cloud.client.from('story_likes').select('story_id').eq('user_id', cloud.user.id);
+  story.liked = new Set(((lk && lk.data) || []).map((x) => x.story_id));
   await fetchPeople(story.list.map((s) => s.user_id).concat(cloud.user.id));
   if (currentView === 'friends') render();
 }
@@ -181,13 +183,24 @@ function openStories(uid) {
     if (!seen().includes(s.id)) { state.seenStories = seen().concat(s.id).slice(-500); save(); }
     const mine = g.uid === cloud.user.id;
     el.innerHTML = `<div class="sv-bars">${g.items.map((x, k) => `<i class="${k < ii ? 'done' : k === ii ? 'cur' : ''}"><b></b></i>`).join('')}</div>
-      <div class="sv-head">${avatarHtml(g.uid, (PEOPLE[g.uid] || {}).name, 'xs')}<b>${esc((PEOPLE[g.uid] || {}).name || '健身er')}</b><span>${relTime(s.created_at)}</span>${statusChip(g.uid)}
+      <div class="sv-head"><button class="sv-user" data-sv="user">${avatarHtml(g.uid, (PEOPLE[g.uid] || {}).name, 'xs')}<b>${esc((PEOPLE[g.uid] || {}).name || '健身er')}</b></button><span>${relTime(s.created_at)}</span>${statusChip(g.uid)}
         <span class="grow"></span>${mine ? '<button data-sv="del">删除</button>' : '<button data-sv="report">举报</button>'}<button data-sv="close" aria-label="关闭">✕</button></div>
       <img src="${esc(s.image_url)}" alt="">
       ${s.caption ? `<div class="sv-cap">${esc(s.caption)}</div>` : ''}
-      <button class="sv-prev" data-sv="-1" aria-label="上一条"></button><button class="sv-next" data-sv="1" aria-label="下一条"></button>`;
+      <button class="sv-prev" data-sv="-1" aria-label="上一条"></button><button class="sv-next" data-sv="1" aria-label="下一条"></button>
+      <div class="sv-foot">${mine
+        ? `<button class="sv-stats" data-sv="stats">${story.stats[s.id] ? `❤️ ${story.stats[s.id].likes} · 💬 ${story.stats[s.id].comments}` : '❤️ · 💬'} 查看</button>`
+        : `<input id="svReply" maxlength="300" placeholder="回复 ${esc((PEOPLE[g.uid] || {}).name || 'TA')}…" autocomplete="off"><button data-sv="send" aria-label="发送">发送</button>
+           <button class="sv-like${story.liked.has(s.id) ? ' on' : ''}" data-sv="like" aria-label="点赞">${story.liked.has(s.id) ? '❤️' : '🤍'}</button>`}</div>`;
     story.view = s;
     timer = setTimeout(() => step(1), STORY_MS);
+    const inp = el.querySelector('#svReply');
+    if (inp) {
+      inp.addEventListener('focus', () => { clearTimeout(timer); el.classList.add('paused'); });
+      inp.addEventListener('blur', () => { if (!inp.value.trim()) { el.classList.remove('paused'); clearTimeout(timer); timer = setTimeout(() => step(1), STORY_MS); } });
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); el.querySelector('[data-sv=send]').click(); } });
+    }
+    if (mine) loadStoryStats(s.id).then(() => { const b = el.querySelector('.sv-stats'); if (b && story.view === s) b.textContent = `❤️ ${story.stats[s.id].likes} · 💬 ${story.stats[s.id].comments} 查看`; });
   };
   el.onclick = async (e) => {
     const b = e.target.closest('[data-sv]');
@@ -207,10 +220,57 @@ function openStories(uid) {
       ii = Math.min(ii, order[gi].items.length - 1); return draw();
     }
     if (a === 'report') { const s = story.view; close(); return openReport('story', s.id); }
+    if (a === 'user') { const uid = order[gi].uid; close(); return openUser(uid); }
+    if (a === 'stats') { const s = story.view; close(); return openStoryActivity(s); }
+    if (a === 'like') {
+      const s = story.view, on = story.liked.has(s.id);
+      if (on) story.liked.delete(s.id); else story.liked.add(s.id);
+      b.textContent = on ? '🤍' : '❤️'; b.classList.toggle('on', !on);
+      const r = on ? await cloud.client.from('story_likes').delete().eq('story_id', s.id).eq('user_id', cloud.user.id)
+        : await cloud.client.from('story_likes').insert({ story_id: s.id, user_id: cloud.user.id });
+      if (r.error && !/duplicate/i.test(r.error.message)) toast(isMissingTable(r.error) ? '请先在 Supabase 运行 supabase/story_social.sql' : `操作失败：${r.error.message}`);
+      return;
+    }
+    if (a === 'send') {
+      const inp = el.querySelector('#svReply'), body = inp.value.trim(), s = story.view;
+      if (!body) return;
+      inp.disabled = true;
+      await ensureProfile();
+      const { error } = await cloud.client.from('story_comments').insert({ story_id: s.id, body });
+      if (error) { inp.disabled = false; return toast(isMissingTable(error) ? '请先在 Supabase 运行 supabase/story_social.sql' : `发送失败：${error.message}`); }
+      toast('已发送，只有 TA 能看到');
+      el.classList.remove('paused');
+      return step(1);
+    }
     step(Number(a));
   };
   el.hidden = false;
   draw();
+}
+
+/* Your own story: who liked it and the replies (only you and each replier can see a reply) */
+async function loadStoryStats(id) {
+  const [l, c] = await Promise.all([
+    cloud.client.from('story_likes').select('user_id').eq('story_id', id),
+    cloud.client.from('story_comments').select('*').eq('story_id', id).order('created_at', { ascending: true }),
+  ]);
+  story.stats[id] = { likes: (l.data || []).length, comments: (c.data || []).length, likers: (l.data || []).map((x) => x.user_id), replies: c.data || [] };
+  await fetchPeople(story.stats[id].likers.concat(story.stats[id].replies.map((r) => r.user_id)));
+  return story.stats[id];
+}
+async function openStoryActivity(s) {
+  const draw = () => {
+    const st = story.stats[s.id];
+    openSheet('快拍互动', `<div class="sa-head"><img src="${esc(s.image_url)}" alt=""><div><b>${st ? st.likes : '-'}</b> 个赞 · <b>${st ? st.comments : '-'}</b> 条回复<div class="muted small">${relTime(s.created_at)}发布 · 24 小时后消失</div></div></div>
+      ${!st ? '<p class="muted">加载中…</p>' : `<h3>❤️ 点赞</h3>${st.likers.length ? `<div class="sa-likers">${st.likers.map((id) => `<button class="cm-av" data-cmuser="${id}" title="${esc((PEOPLE[id] || {}).name || '')}">${avatarHtml(id, (PEOPLE[id] || {}).name, 'sm')}</button>`).join('')}</div>` : '<p class="muted">还没有人点赞</p>'}
+        <h3>💬 回复</h3>${st.replies.length ? st.replies.map((r) => `<div class="cm-cmt"><button class="cm-av" data-cmuser="${r.user_id}">${avatarHtml(r.user_id, r.author_name, 'xs')}</button>
+          <div class="grow"><b>${esc(r.author_name || '健身er')}</b> <span class="muted small">${relTime(r.created_at)}</span><div>${esc(r.body)}</div></div>
+          <button class="link small" data-sadel="${r.id}">删除</button></div>`).join('') : '<p class="muted">还没有回复</p>'}`}`, { type: 'cmstory', reopen: draw });
+  };
+  draw();
+  await loadStoryStats(s.id);
+  if (sheetCtx && sheetCtx.type === 'cmstory') draw();
+  story.activity = s;
 }
 
 /* ---------- shared report sheet ---------- */
@@ -255,6 +315,14 @@ function bindStories() {
     if (!b) return;
     const ds = b.dataset;
     if (sheetCtx.type === 'report' && ds.rp) return submitReport(ds.rp);
+    if (sheetCtx.type === 'cmstory' && ds.sadel) {
+      cloud.client.from('story_comments').delete().eq('id', ds.sadel).then(() => {
+        const st = story.stats[story.activity.id];
+        st.replies = st.replies.filter((r) => r.id !== ds.sadel); st.comments = st.replies.length;
+        refreshSheet();
+      });
+      return;
+    }
     if (sheetCtx.type === 'stnew' && ds.stact === 'post-story') return postStory();
     if (sheetCtx.type === 'stprof') {
       if (ds.pfst !== undefined) { readProf(); profDraft.status = ds.pfst; return refreshSheet(); }

@@ -179,7 +179,7 @@ function renderMe() {
     banner = `<button class="banner on" data-me-sub="account"><b>☁️ 云端同步已开启</b><span>${esc(syncText()) || '已登录'} ›</span></button>`;
   }
   $('#view-me').innerHTML = `
-    <div class="me-top">${me && me.avatar_url ? `<div class="avatar big photo"><img src="${esc(me.avatar_url)}" alt=""></div>` : `<div class="avatar big">${esc((p.name || '我').slice(0, 1))}</div>`}
+    <div class="me-top"><button class="me-av" ${cloud.user ? 'data-act="me-view-profile" aria-label="查看我的主页"' : 'disabled'}>${me && me.avatar_url ? `<div class="avatar big photo"><img src="${esc(me.avatar_url)}" alt=""></div>` : `<div class="avatar big">${esc((p.name || '我').slice(0, 1))}</div>`}</button>
       <div class="grow"><div class="row"><h1 class="me-name">${p.name ? esc(p.name) : '未设置昵称'}</h1><button class="pill-btn" data-act="edit">修改信息</button></div>
         ${me && (me.status || me.bio) ? `<div class="me-status">${me.status ? `<span class="cm-status">${esc(me.status)}</span> ` : ''}<span class="muted small">${esc(me.bio || '')}</span></div>` : ''}
         ${cloud.user ? '<button class="link small" data-act="me-profile">编辑头像、签名和状态</button>' : ''}
@@ -201,6 +201,7 @@ function bindMe() {
     if (b.dataset.meSub) { meSub = b.dataset.meSub; render(); window.scrollTo(0, 0); }
     else if (b.dataset.act === 'me-back') { meSub = null; render(); }
     else if (b.dataset.act === 'me-profile') { profDraft = null; openProfileEdit(); }
+    else if (b.dataset.act === 'me-view-profile') { comm.viewing = null; openUser(cloud.user.id); }
   });
   root.addEventListener('input', (e) => {
     if (e.target.id !== 'rmW' && e.target.id !== 'rmR') return;
