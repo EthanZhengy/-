@@ -102,9 +102,11 @@ function lookHtml() {
       <div class="font-opts">${Object.entries(FONTS).map(([k, f]) => `<button class="font-opt${(a.font || 'system') === k ? ' on' : ''}" data-look-font="${k}" style="font-family:${k === 'system' ? 'inherit' : `var(--f-${k})`}"><b>${f.name}</b><span>今天练腿，谁也别想让我爬楼梯</span></button>`).join('')}</div>
       <label>文字大小</label>
       <div class="chips">${FONT_SCALES.map(([v, l]) => chip(l, `data-look-scale="${v}"`, (a.scale || 1) === v)).join('')}</div>
+      <label>行间距</label>
+      <div class="chips">${LINE_HEIGHTS.map(([v, l]) => chip(l, `data-look-lh="${v}"`, (a.lineHeight || 1.4) === v)).join('')}</div>
       <label>数字字体</label>
       <div class="chips">${chip('窄体粗字（推荐）', 'data-look-num="display"', a.numFont !== 'system')}${chip('跟随正文字体', 'data-look-num="system"', a.numFont === 'system')}</div>
-      <div class="font-preview"><div>预览：卧推日 · 第 2 周</div><div class="fp-num">85kg × 5+</div><div class="muted">字体从网络按需加载，第一次切换可能要等一两秒。</div></div>
+      <div class="font-preview"><div>预览：卧推日 · 第 2 周</div><p class="fp-para">今天的主项是卧推，热身做足再上大重量。练完记得补充蛋白质，睡够七个小时，肌肉是在休息的时候长出来的。</p><div class="fp-num">85kg × 5+</div><div class="muted">字体从网络按需加载，第一次切换可能要等一两秒。</div></div>
       <label class="row check"><input type="checkbox" data-splash ${a.splash !== false ? 'checked' : ''}> 打开 App 时显示启动页（今日一句）</label></div>
     <div class="card"><h2>今日一句</h2>
       <label class="row check"><input type="checkbox" data-q-on ${c.on ? 'checked' : ''}> 显示语录（首页、休息日、训练完成）</label>
@@ -120,6 +122,7 @@ function handleLookClick(b) {
   const c = quoteCfg();
   if (ds.lookFont) { state.appearance = { ...(state.appearance || {}), font: ds.lookFont }; save(); applyTheme(); }
   else if (ds.lookScale) { state.appearance = { ...(state.appearance || {}), scale: Number(ds.lookScale) }; save(); applyTheme(); }
+  else if (ds.lookLh) { state.appearance = { ...(state.appearance || {}), lineHeight: Number(ds.lookLh) }; save(); applyTheme(); }
   else if (ds.lookNum) { state.appearance = { ...(state.appearance || {}), numFont: ds.lookNum }; save(); applyTheme(); }
   else if (ds.lookMode) { state.appearance = { ...(state.appearance || {}), mode: ds.lookMode }; save(); applyTheme(); }
   else if (ds.lookAccent) { state.appearance = { ...(state.appearance || {}), accent: ds.lookAccent }; save(); applyTheme(); }
@@ -142,7 +145,7 @@ function handleLookClick(b) {
 }
 function bindQuotes() {
   document.addEventListener('click', (e) => {
-    const b = e.target.closest('#view-home [data-q], #view-me [data-q], #view-me [data-look-mode], #view-me [data-look-accent], #view-me [data-look-font], #view-me [data-look-scale], #view-me [data-look-num], #view-me [data-q-cat]');
+    const b = e.target.closest('#view-home [data-q], #view-me [data-q], #view-me [data-look-mode], #view-me [data-look-accent], #view-me [data-look-font], #view-me [data-look-scale], #view-me [data-look-lh], #view-me [data-look-num], #view-me [data-q-cat]');
     if (b) handleLookClick(b);
   });
   document.addEventListener('change', (e) => {

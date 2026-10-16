@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.19.0';
+const APP_VERSION = '1.20.0';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -53,6 +53,7 @@ const FONTS = {
   round: { name: '站酷快乐体', css: ['https://cdn.jsdelivr.net/npm/@fontsource/zcool-kuaile@5.3.0/400.css'] },
 };
 const FONT_SCALES = [[0.9, '小'], [1, '标准'], [1.1, '大'], [1.2, '特大'], [1.3, '超大']];
+const LINE_HEIGHTS = [[1.25, '紧凑'], [1.4, '标准'], [1.6, '宽松'], [1.8, '特宽'], [2, '超宽']];
 function loadFontCss(font) {
   (FONTS[font] || FONTS.system).css.forEach((href) => {
     if (document.querySelector(`link[data-font-css="${href}"]`)) return;
@@ -62,7 +63,7 @@ function loadFontCss(font) {
   });
 }
 
-/** 外观: dark / light / follow the system, accent color, font and text size. Mirrored to localStorage for the pre-paint script in index.html. */
+/** 外观: dark / light / follow the system, accent color, font, text size and line spacing. Mirrored to localStorage for the pre-paint script in index.html. */
 function applyTheme() {
   const a = state.appearance || {};
   const mode = a.mode || 'dark';
@@ -74,10 +75,13 @@ function applyTheme() {
   root.dataset.font = font;
   root.dataset.num = a.numFont === 'system' ? 'system' : 'display';
   root.style.setProperty('--ui-zoom', String(a.scale || 1));
+  const lh = a.lineHeight || 1.4;
+  root.style.setProperty('--lh', String(lh));
+  root.style.setProperty('--lh-k', (lh / 1.4).toFixed(3));
   loadFontCss(font);
   const meta = document.querySelector('meta[name=theme-color]');
   if (meta) meta.content = dark ? '#0d0e10' : '#f1f2ee';
-  try { localStorage.setItem('ianz-theme', JSON.stringify({ mode, accent: a.accent || 'volt', splash: a.splash !== false, font, num: root.dataset.num, scale: a.scale || 1, css: FONTS[font].css })); } catch { /* private mode */ }
+  try { localStorage.setItem('ianz-theme', JSON.stringify({ mode, accent: a.accent || 'volt', splash: a.splash !== false, font, num: root.dataset.num, scale: a.scale || 1, lh, css: FONTS[font].css })); } catch { /* private mode */ }
 }
 applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if ((state.appearance || {}).mode === 'auto') applyTheme(); });

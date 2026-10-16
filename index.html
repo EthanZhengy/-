@@ -17,6 +17,7 @@
     if (t.font) document.documentElement.setAttribute('data-font', t.font);
     if (t.num) document.documentElement.setAttribute('data-num', t.num);
     if (t.scale) document.documentElement.style.setProperty('--ui-zoom', String(t.scale));
+    if (t.lh) { document.documentElement.style.setProperty('--lh', String(t.lh)); document.documentElement.style.setProperty('--lh-k', String(t.lh / 1.4)); }
     (t.css || []).forEach(function (h) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = h; l.setAttribute('data-font-css', h); document.head.appendChild(l); });
   })();
 </script>
