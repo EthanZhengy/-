@@ -14,6 +14,7 @@ function render() {
   $('.tabbar').innerHTML = TABS.map(([k, label, icon]) => `<button data-view="${k}" class="${currentView === k ? 'active' : ''}">${ICONS[icon]}<span>${label}</span>${k === 'friends' && social.incoming.length ? `<i class="dot-badge">${social.incoming.length}</i>` : ''}</button>`).join('');
   if (wiz) return renderWizard();
   RENDER[currentView]();
+  if (restTimer) drawRest();
   updateBadge();
 }
 

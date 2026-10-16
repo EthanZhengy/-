@@ -503,7 +503,22 @@ function startRest(sec) {
   restTimer.iv = setInterval(drawRest, 250);
   drawRest();
 }
-function stopRest() { if (restTimer) clearInterval(restTimer.iv); restTimer = null; $('#rest').hidden = true; }
+function stopRest() { if (restTimer) clearInterval(restTimer.iv); restTimer = null; restMode = ''; $('#rest').hidden = true; }
+
+/* On the workout screen the timer is a bar; elsewhere (or after 缩小) it is a round bubble you can drag anywhere. */
+let restMini = null; // null = automatic
+let restView = '';
+let restMode = '';
+const REST_RING = 2 * Math.PI * 28;
+const restIsMini = () => (restMini ?? currentView !== 'workout');
+function restPos() { try { return JSON.parse(localStorage.getItem('ianz-rest-pos')) || null; } catch { return null; } }
+function applyRestPos(el) {
+  if (restMode !== 'mini') { el.style.left = el.style.top = ''; return; }
+  const p = restPos() || { side: 'right', y: 0.62 };
+  const size = el.offsetWidth || 72;
+  el.style.left = `${p.side === 'left' ? 12 : innerWidth - size - 12}px`;
+  el.style.top = `${Math.min(innerHeight - size - 90, Math.max(50, p.y * innerHeight))}px`;
+}
 function drawRest() {
   const el = $('#rest');
   if (!restTimer) { el.hidden = true; return; }
@@ -513,10 +528,58 @@ function drawRest() {
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     return toast('⏰ 休息结束，开始下一组');
   }
+  if (restView !== currentView) { restView = currentView; restMini = null; }
   el.hidden = false;
-  el.innerHTML = `<div class="rest-bar" style="width:${(left / restTimer.total) * 100}%"></div>
-    <span>休息</span><b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b>
-    <button data-rest-add="-30" aria-label="减少 30 秒">−30s</button><button data-rest-add="30" aria-label="增加 30 秒">+30s</button><button data-rest-skip>跳过</button>`;
+  const mode = restIsMini() ? 'mini' : 'bar';
+  if (restMode !== mode || !el.firstChild) {
+    restMode = mode;
+    el.classList.toggle('mini', mode === 'mini');
+    el.innerHTML = mode === 'mini'
+      ? `<svg class="rest-ring" viewBox="0 0 64 64" aria-hidden="true"><circle class="trk" cx="32" cy="32" r="28"/><circle class="val" cx="32" cy="32" r="28" transform="rotate(-90 32 32)" stroke-dasharray="${REST_RING.toFixed(1)}"/></svg><b></b><small>休息</small>`
+      : `<div class="rest-bar"></div><span>休息</span><b></b>
+        <button data-rest-add="-30" aria-label="减少 30 秒">−30s</button><button data-rest-add="30" aria-label="增加 30 秒">+30s</button><button data-rest-skip>跳过</button>
+        <button class="rest-min" data-rest-min aria-label="缩小成悬浮球">⌄</button>`;
+    el.setAttribute('aria-label', mode === 'mini' ? '休息倒计时，点开查看' : '休息倒计时');
+    applyRestPos(el);
+  }
+  const frac = left / restTimer.total;
+  el.querySelector('b').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  if (mode === 'mini') el.querySelector('.val').style.strokeDashoffset = (REST_RING * (1 - frac)).toFixed(1);
+  else el.querySelector('.rest-bar').style.width = `${frac * 100}%`;
+}
+/* Drag the bubble; it snaps to the nearest side and remembers where it was. */
+function bindRestDrag() {
+  const el = $('#rest');
+  let drag = null;
+  el.addEventListener('pointerdown', (e) => {
+    if (restMode !== 'mini') return;
+    const r = el.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top, x0: e.clientX, y0: e.clientY, moved: false };
+    el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    if (Math.abs(e.clientX - drag.x0) + Math.abs(e.clientY - drag.y0) > 6) drag.moved = true;
+    if (!drag.moved) return;
+    el.classList.add('dragging');
+    el.style.left = `${e.clientX - drag.dx}px`;
+    el.style.top = `${e.clientY - drag.dy}px`;
+  });
+  const end = () => {
+    if (!drag) return;
+    el.classList.remove('dragging');
+    if (drag.moved) {
+      const r = el.getBoundingClientRect();
+      try { localStorage.setItem('ianz-rest-pos', JSON.stringify({ side: r.left + r.width / 2 < innerWidth / 2 ? 'left' : 'right', y: r.top / innerHeight })); } catch { /* private mode */ }
+      applyRestPos(el);
+      el.dataset.dragged = '1'; // swallow the click that follows a drag
+      setTimeout(() => { delete el.dataset.dragged; }, 50);
+    }
+    drag = null;
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  addEventListener('resize', () => applyRestPos(el));
 }
 
 function bindWorkout() {
@@ -658,10 +721,14 @@ function bindWorkout() {
     pick.q = e.target.value;
     $('#pxList').innerHTML = pickListHtml();
   });
+  bindRestDrag();
   $('#rest').addEventListener('click', (e) => {
+    if (!restTimer) return;
+    if (restMode === 'mini') { if (!$('#rest').dataset.dragged) { restMini = false; drawRest(); } return; }
     const b = e.target.closest('button');
-    if (!b || !restTimer) return;
-    if (b.dataset.restSkip !== undefined) stopRest();
+    if (!b) return;
+    if (b.dataset.restMin !== undefined) { restMini = true; drawRest(); }
+    else if (b.dataset.restSkip !== undefined) stopRest();
     else if (b.dataset.restAdd) {
       const sec = Number(b.dataset.restAdd);
       restTimer.end += sec * 1000;

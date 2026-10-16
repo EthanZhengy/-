@@ -969,3 +969,14 @@ body:has(.free-bar) .rest { z-index: 25; bottom: calc(84px + env(safe-area-inset
 .eh-i { width: 18px; color: var(--text); }
 .eh-set { flex: 1; }
 .eh-e1 { text-align: right; }
+
+/* rest timer as a draggable bubble */
+.rest-min { padding: 8px 10px !important; }
+#rest.mini { right: auto; bottom: auto; width: 72px; height: 72px; max-width: none; margin: 0; padding: 0; border-radius: 50%; flex-direction: column; justify-content: center; align-items: center; gap: 0; touch-action: none; cursor: grab; z-index: 30; user-select: none; -webkit-user-select: none; transition: left .2s ease, top .2s ease; }
+#rest.mini.dragging { transition: none; cursor: grabbing; transform: scale(1.06); }
+#rest.mini b { flex: none; font-size: 18px; position: relative; line-height: 1; }
+#rest.mini small { position: relative; font-size: 10px; opacity: .7; margin-top: 2px; }
+.rest-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+.rest-ring circle { fill: none; stroke-width: 4.5; }
+.rest-ring .trk { stroke: rgba(255,255,255,.14); }
+.rest-ring .val { stroke: var(--primary); stroke-linecap: round; transition: stroke-dashoffset .25s linear; }
