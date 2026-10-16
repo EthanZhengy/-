@@ -162,22 +162,16 @@ const ME_PAGES = {
   install: ['安装到手机', 'phone', () => installHtml()],
   account: ['账号与同步', 'cloud', () => accountCard()],
   look: ['外观、字体与语录', 'gear', () => lookHtml()],
-  about: ['关于我们', 'info', () => aboutHtml()],
+  team: ['团队', 'info', () => teamHtml()],
 };
 
-/* 关于我们: the app, its mark and the people behind it */
 const TEAM = [
-  { n: 'Ian Zheng', zh: '创始人', role: 'Founder & CEO', av: 'I', cls: 'volt', text: '产品、训练计划和整个 App 的设计。每天用它练，哪里不顺手就改哪里。' },
-  { n: 'Mike Zhang', zh: '创意思维总监', role: 'CIO · Chief Ideas Officer', av: 'M', cls: 'light', text: '训练方法与产品创意顾问，给了这个 App 很多关键建议。App 里的「Mike 卧推计划」就来自他。' },
+  { n: 'Ian Zheng', zh: '创始人', role: 'Founder & CEO', av: 'I', cls: 'volt' },
+  { n: 'Mike Zhang', zh: '创意思维总监', role: 'CIO', av: 'M', cls: 'light' },
 ];
-function aboutHtml() {
-  return `<div class="card about-hero"><img src="icons/icon.svg" alt="Ianz Fitness" class="about-logo">
-      <h2>Ianz Fitness</h2><p class="muted">一起练，练得更聪明。</p>
-      <p class="muted small">标志里的两个人，就是我们俩：一根杠铃，两个训练伙伴。</p></div>
-    <div class="card"><h2>团队</h2>${TEAM.map((m) => `<div class="team-row"><span class="team-av ${m.cls}">${m.av}</span>
-      <div class="grow"><b>${m.n}</b> <span class="muted small">${m.zh}</span><div class="team-role">${m.role}</div><p class="muted small">${m.text}</p></div></div>`).join('')}</div>
-    <div class="card"><h2>特别感谢</h2><p class="muted">感谢 Mike 一路以来的建议和陪练，也感谢每一位在用 Ianz Fitness 训练的朋友。</p></div>
-    <p class="muted center small pad">版本 ${APP_VERSION} · <a href="privacy.html">隐私政策</a> · <a href="terms.html">用户协议</a></p>`;
+function teamHtml() {
+  return `<div class="card">${TEAM.map((m) => `<div class="team-row"><span class="team-av ${m.cls}">${m.av}</span>
+    <div class="grow"><b>${m.n}</b><div class="team-role">${m.zh} · ${m.role}</div></div></div>`).join('')}</div>`;
 }
 
 function renderMe() {
@@ -208,7 +202,7 @@ function renderMe() {
     ${banner}
     <div class="me-stats"><div><b>${n}</b><span>累计训练</span></div><div><b>${pos ? `${pos.week}<small>/${progOf().weeks}</small>` : '—'}</b><span>当前周</span></div><div><b>${p.weight}<small>kg</small></b><span>体重</span></div></div>
     <div class="menu">${row('body', `${p.height}cm · ${GOALS[p.goal].label}`)}${row('nutrition', dietOn() ? '' : '已隐藏')}${row('training')}${row('rm')}</div>
-    <div class="menu">${row('look', `${{ dark: '暗色调', light: '亮色调', auto: '跟随系统' }[(state.appearance || {}).mode || 'dark']}${quotesOn() ? '' : ' · 语录已关'}`)}${row('reminders', state.reminders.enabled ? '已开启' : '')}${row('data')}${row('install')}${row('about', 'Ian & Mike')}</div>
+    <div class="menu">${row('look', `${{ dark: '暗色调', light: '亮色调', auto: '跟随系统' }[(state.appearance || {}).mode || 'dark']}${quotesOn() ? '' : ' · 语录已关'}`)}${row('reminders', state.reminders.enabled ? '已开启' : '')}${row('data')}${row('install')}${row('team')}</div>
     ${cloud.user ? `<div class="menu">${row('account')}<button class="menu-row danger" data-act="logout"><span class="mi">${ICONS.logout}</span><span class="grow">退出登录</span></button></div>` : ''}
     <p class="muted center pad">Ianz Fitness · 版本 ${APP_VERSION} · <a href="plans.html">训练计划介绍</a> · <a href="privacy.html">隐私政策</a> · <a href="terms.html">用户协议</a></p>`;
 }
