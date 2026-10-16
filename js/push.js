@@ -123,7 +123,7 @@ function handleDeepLink() {
   else if (go === 'free') { startFree(); currentView = 'workout'; }
   else if (go === 'community') return openFriends();
   else if (['library', 'history', 'me', 'challenge'].includes(go)) currentView = go;
-  else { currentView = 'home'; homeTab = go === 'food' ? 'food' : 'today'; }
+  else { currentView = 'home'; homeTab = go === 'food' && dietOn() ? 'food' : 'today'; }
   render(); window.scrollTo(0, 0);
   if (go === 'tpl') openTemplates();
   else if (go === 'weight') openWeightSheet();
@@ -136,7 +136,7 @@ function shortcutsGuideHtml() {
     <ol class="tips"><li>打开「快捷指令」→ 右上角 ＋ → 添加操作，搜索「打开 URL」</li>
       <li>把下面的链接粘贴进去，给快捷指令起个名字（如「开始训练」），选个图标</li>
       <li>长按桌面空白处 → 左上角 ＋ → 找到「快捷指令」小组件，选中号（4 个按钮）放到桌面</li></ol>
-    ${DEEP_LINKS.map(([go, l]) => `<div class="row between dl-row"><span>${l}</span><button class="btn tiny ghost" data-copy-link="${go}">复制链接</button></div>`).join('')}
+    ${DEEP_LINKS.filter(([go]) => go !== 'food' || dietOn()).map(([go, l]) => `<div class="row between dl-row"><span>${l}</span><button class="btn tiny ghost" data-copy-link="${go}">复制链接</button></div>`).join('')}
     <p class="muted small">注意：iPhone 的快捷指令会用 Safari 打开链接，而不是主屏幕上的 App。登录同一个账号后数据是一样的。</p></div>`;
 }
 function bindPush() {

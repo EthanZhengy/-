@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.20.0';
+const APP_VERSION = '1.21.0';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -52,6 +52,9 @@ const FONTS = {
   serif: { name: '思源宋体', css: ['https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@5.3.1/400.css', 'https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@5.3.1/700.css'] },
   round: { name: '站酷快乐体', css: ['https://cdn.jsdelivr.net/npm/@fontsource/zcool-kuaile@5.3.0/400.css'] },
 };
+/** 饮食功能: 'on' | 'collapsed' (home card folded to one line) | 'off' (hidden everywhere, restore in 我的 → 营养目标) */
+const dietMode = () => state.dietMode || 'on';
+const dietOn = () => dietMode() !== 'off';
 const FONT_SCALES = [[0.9, '小'], [1, '标准'], [1.1, '大'], [1.2, '特大'], [1.3, '超大']];
 const LINE_HEIGHTS = [[1.25, '紧凑'], [1.4, '标准'], [1.6, '宽松'], [1.8, '特宽'], [2, '超宽']];
 function loadFontCss(font) {
@@ -135,14 +138,14 @@ function remindersFor(date) {
   const pos = position(state, date);
   const kind = sid === 'rest' || !pos ? 'rest' : LOWER[sid] ? 'lower' : 'upper';
   const n = nutritionFor(state, kind);
-  const nut = `营养：${n.kcal}千卡 · 蛋白${n.protein}g · 碳水${n.carbs}g · 脂肪${n.fat}g · 水${n.water}ml`;
+  const nut = !dietOn() ? '' : `\n营养：${n.kcal}千卡 · 蛋白${n.protein}g · 碳水${n.carbs}g · 脂肪${n.fat}g · 水${n.water}ml`;
   const list = [];
-  if (sid === 'rest' || !pos) list.push({ time: state.reminders.morning, title: '今天休息 🧘', body: `${rec.reason}\n${nut}` });
+  if (sid === 'rest' || !pos) list.push({ time: state.reminders.morning, title: '今天休息 🧘', body: `${rec.reason}${nut}` });
   else {
-    list.push({ time: state.reminders.morning, title: `今天练：${sessionName(sid, pos.week)} 💪（第${pos.week}周）`, body: `${sessionSummary(state, date, sid, 'normal')}\n${nut}` });
+    list.push({ time: state.reminders.morning, title: `今天练：${sessionName(sid, pos.week)} 💪（第${pos.week}周）`, body: `${sessionSummary(state, date, sid, 'normal')}${nut}` });
     if (state.reminders.meals) list.push({ time: fromMin(toMin(state.trainTime) - 15), title: '15 分钟后开始训练', body: sessionName(sid, pos.week) });
   }
-  if (state.reminders.meals) mealsFor(state, n).forEach((m) => list.push({ time: m.time, title: `该吃${m.name}了`, body: `${m.food}\n≈蛋白 ${m.protein}g · 碳水 ${m.carbs}g · 脂肪 ${m.fat}g` }));
+  if (state.reminders.meals && dietOn()) mealsFor(state, n).forEach((m) => list.push({ time: m.time, title: `该吃${m.name}了`, body: `${m.food}\n≈蛋白 ${m.protein}g · 碳水 ${m.carbs}g · 脂肪 ${m.fat}g` }));
   return list;
 }
 async function requestNotify() {

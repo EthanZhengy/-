@@ -37,8 +37,13 @@ function dietCard(t) {
   const e = eaten(t.log);
   const water = (t.log.water || 0) * 250;
   const mealKeys = new Set((t.log.food || []).map((f) => f.meal));
+  if (dietMode() === 'collapsed') {
+    return `<button class="card diet diet-mini" data-diet-mode="on" aria-label="展开饮食记录">
+      <span class="grow"><b>饮食</b> <span class="muted">${e.kcal} / ${t.n.kcal} 大卡 · 蛋白 ${Math.round(e.p)}/${t.n.protein}g · 饮水 ${water}ml</span></span><span class="diet-tgl">展开 ▾</span></button>`;
+  }
   return `<div class="card diet">
-    <div class="row between"><h2>饮食记录</h2><span class="tag">${KIND_LABEL[t.n.kind]} · ${t.n.goal.label}</span></div>
+    <div class="row between"><h2>饮食记录</h2><span class="row diet-acts"><span class="tag">${KIND_LABEL[t.n.kind]} · ${t.n.goal.label}</span>
+      <button class="diet-tgl" data-diet-mode="collapsed">收起 ▴</button><button class="diet-tgl" data-diet-mode="off" aria-label="不需要饮食功能">✕</button></span></div>
     <div class="kcal"><b>${e.kcal}</b> / 目标 ${t.n.kcal} 大卡</div>
     <div class="rings">${ring(e.p, t.n.protein, 'r-p', '蛋白', 'g')}${ring(e.c, t.n.carbs, 'r-c', '碳水', 'g')}${ring(e.f, t.n.fat, 'r-f', '脂肪', 'g')}${ring(water, t.n.water, 'r-w', '饮水', 'ml')}</div>
     <div class="quick">
@@ -94,8 +99,9 @@ function renderHome() {
   let html = `<div class="page-head"><div><div class="muted">${fmtDate(t.date)} ${WEEKDAYS[weekdayIdx(t.date)]}</div>
     <h1>${greeting()}${name ? `，${esc(name)}` : ''}</h1></div>
 </div>`;
-  html += dietCard(t);
-  html += `<div class="utabs">${[['today', '今日训练'], ['week', '本周安排'], ['food', '饮食建议']].map(([k, l]) => `<button data-htab="${k}" class="${homeTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  if (dietOn()) html += dietCard(t);
+  else if (homeTab === 'food') homeTab = 'today';
+  html += `<div class="utabs">${[['today', '今日训练'], ['week', '本周安排'], ...(dietOn() ? [['food', '饮食建议']] : [])].map(([k, l]) => `<button data-htab="${k}" class="${homeTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   if (homeTab === 'today') html += homeFreeHtml(t) + quoteCardHtml() + homeToday(t);
   else if (homeTab === 'week') html += homeWeek(t);
   else html += homeFood(t);
@@ -191,6 +197,11 @@ function bindHome() {
     const t = todayInfo();
     const ds = b.dataset;
     if (ds.htab) homeTab = ds.htab;
+    else if (ds.dietMode) {
+      if (ds.dietMode === 'off' && !confirm('不需要饮食功能？\n\n首页的饮食记录、饮食建议和吃饭提醒都会隐藏，已记录的数据会保留。\n随时可以在「我的 → 饮食与营养」恢复。')) return;
+      state.dietMode = ds.dietMode;
+      if (ds.dietMode === 'off') { toast('已隐藏饮食功能，可在「我的 → 饮食与营养」恢复'); syncPushSoon(); }
+    }
     else if (ds.diet) {
       if (ds.diet === 'water') return openWaterSheet();
       if (ds.diet === 'weight') return openWeightSheet();

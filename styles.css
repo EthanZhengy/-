@@ -796,3 +796,9 @@ input, select, textarea, button { font-family: inherit; }
 /* 行间距 setting (--lh) spaces out text, while buttons, chips and the tab bar keep their size */
 .btn, .chip, .tabbar button, .swatch, .setrow, .setrow input { line-height: 1.25; }
 .font-preview .fp-para { margin: 6px 0; font-size: 14px; }
+
+/* 饮食 card: collapse / hide */
+.diet-acts { gap: 6px; align-items: center; }
+.diet-tgl { border: 0; background: var(--card-2); color: var(--muted); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12px; line-height: 1.25; cursor: pointer; }
+.diet-mini { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; color: var(--text); font: inherit; cursor: pointer; }
+.diet-mini .muted { font-size: 13px; }

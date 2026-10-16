@@ -10,7 +10,12 @@ function todayKind() {
 function nutritionTargetsHtml() {
   const kind = todayKind();
   const kinds = [['lower', '下肢大重量日（硬拉 / 深蹲）'], ['upper', '上肢日（推举 / 卧推）'], ['rest', '休息日']];
-  return `${kinds.map(([k, label]) => { const n = nutritionFor(state, k); return `<div class="card"><div class="row between"><h2>${label}</h2>${k === kind ? '<span class="tag">今天</span>' : ''}</div>${macrosHtml(n)}<p class="muted">饮水 ${n.water}ml</p></div>`; }).join('')}
+  const mode = dietMode();
+  const show = `<div class="card"><h2>饮食功能</h2>
+    <p class="muted">用不上可以隐藏：首页的饮食记录、饮食建议和吃饭提醒都会消失，已记录的数据会保留，随时可以恢复。</p>
+    <div class="chips">${[['on', '显示'], ['collapsed', '首页收起'], ['off', '隐藏']].map(([k, l]) => chip(l, `data-act="diet-mode" data-mode="${k}"`, mode === k)).join('')}</div></div>`;
+  if (mode === 'off') return show;
+  return `${show}${kinds.map(([k, label]) => { const n = nutritionFor(state, k); return `<div class="card"><div class="row between"><h2>${label}</h2>${k === kind ? '<span class="tag">今天</span>' : ''}</div>${macrosHtml(n)}<p class="muted">饮水 ${n.water}ml</p></div>`; }).join('')}
     <div class="card"><h2>今日建议</h2><ul class="tips">${nutritionTips(nutritionFor(state, kind)).map((t) => `<li>${t}</li>`).join('')}</ul></div>
     <p class="muted pad">数值依据 Mifflin-St Jeor 公式估算，按每周体重变化微调 ±100–200 千卡。身体数据变了，营养目标会自动重算。</p>`;
 }
@@ -149,7 +154,7 @@ function importJson(file) {
 let meSub = null;
 const ME_PAGES = {
   body: ['身体数据', 'body', () => bodyDataHtml()],
-  nutrition: ['营养目标', 'food', () => nutritionTargetsHtml()],
+  nutrition: ['饮食与营养', 'food', () => nutritionTargetsHtml()],
   training: ['训练设置', 'plan', () => trainingSettingsHtml()],
   rm: ['RM 计算器', 'calc', () => rmHtml()],
   reminders: ['提醒设置', 'bell', () => remindersHtml()],
@@ -186,7 +191,7 @@ function renderMe() {
         <div class="me-id">${cloud.user ? `<span class="ok">✓ 已登录</span> ${esc(accountLabel())}` : cloudEnabled() ? '未登录 · 数据仅保存在本机' : '本机模式'}</div></div></div>
     ${banner}
     <div class="me-stats"><div><b>${n}</b><span>累计训练</span></div><div><b>${pos ? `${pos.week}<small>/${progOf().weeks}</small>` : '—'}</b><span>当前周</span></div><div><b>${p.weight}<small>kg</small></b><span>体重</span></div></div>
-    <div class="menu">${row('body', `${p.height}cm · ${GOALS[p.goal].label}`)}${row('nutrition')}${row('training')}${row('rm')}</div>
+    <div class="menu">${row('body', `${p.height}cm · ${GOALS[p.goal].label}`)}${row('nutrition', dietOn() ? '' : '已隐藏')}${row('training')}${row('rm')}</div>
     <div class="menu">${row('look', `${{ dark: '暗色调', light: '亮色调', auto: '跟随系统' }[(state.appearance || {}).mode || 'dark']}${quotesOn() ? '' : ' · 语录已关'}`)}${row('reminders', state.reminders.enabled ? '已开启' : '')}${row('data')}${row('install')}</div>
     ${cloud.user ? `<div class="menu">${row('account')}<button class="menu-row danger" data-act="logout"><span class="mi">${ICONS.logout}</span><span class="grow">退出登录</span></button></div>` : ''}
     <p class="muted center pad">Ianz Fitness · 版本 ${APP_VERSION} · <a href="plans.html">训练计划介绍</a> · <a href="privacy.html">隐私政策</a> · <a href="terms.html">用户协议</a></p>`;
@@ -201,6 +206,10 @@ function bindMe() {
     if (b.dataset.meSub) { meSub = b.dataset.meSub; render(); window.scrollTo(0, 0); }
     else if (b.dataset.act === 'me-back') { meSub = null; render(); }
     else if (b.dataset.act === 'me-profile') { profDraft = null; openProfileEdit(); }
+    else if (b.dataset.act === 'diet-mode') {
+      state.dietMode = b.dataset.mode; save(); render(); syncPushSoon();
+      toast(b.dataset.mode === 'off' ? '已隐藏饮食功能' : b.dataset.mode === 'on' ? '饮食功能已恢复 🍽️' : '首页饮食卡片已收起');
+    }
     else if (b.dataset.act === 'me-view-profile') { comm.viewing = null; openUser(cloud.user.id); }
   });
   root.addEventListener('input', (e) => {
