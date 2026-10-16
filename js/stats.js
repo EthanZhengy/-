@@ -19,14 +19,45 @@ function sessionWithExtras(st, date, sid, log) {
   const s = sid === 'free' ? { pos: null, blocks: [], notes: [], sessionId: 'free' }
     : buildSession(st, date, sid, { readiness: log.readiness, swaps: (log.swaps || {})[sid] || {} });
   if (!s) return s;
+  if (sid !== 'free') templateBlocks(st, date, sid, log, s);
   ((log.extra || {})[sid] || []).forEach((e) => s.blocks.push({
     key: `x${e.k}`, type: 'sets', ex: e, title: `自选 · ${e.name}`, sets: 3, reps: e.reps || '10', extra: true,
   }));
   return s;
 }
 
+/** Current 1RM-equivalent of a session's main lift; custom template exercises are scaled from it. */
+function sessionRef(st, date, sid) {
+  const pos = position(st, date);
+  if (!pos || !SESSIONS[sid]) return 0;
+  if (programOfSession(sid) === 'mike') return mikeMax(st, pos.cycle, sid === 'mike2' ? 'cg' : 'bench');
+  return tmFor(st, pos.cycle, pos.week, SESSIONS[sid].main) / 0.9;
+}
+
+/**
+ * Exercises the user saved into a plan template (state.tplEx[sid]). They are optional per day
+ * (log.tplPick[sid] = chosen keys; missing = all). 'follow' exercises copy the main lift's sets,
+ * reps and percentages, scaled by ratio = own 1RM / main-lift 1RM, so they progress, wave and
+ * deload exactly like the main lift.
+ */
+function templateBlocks(st, date, sid, log, s) {
+  const list = (st.tplEx || {})[sid] || [];
+  const pick = (log.tplPick || {})[sid];
+  const main = s.blocks.find((b) => b.type === 'main');
+  const ref = list.some((e) => e.follow) ? sessionRef(st, date, sid) : 0;
+  list.filter((e) => !pick || pick.includes(e.k)).forEach((e) => {
+    const b = { key: `t${e.k}`, type: 'sets', ex: e, tpl: true, title: `模板 · ${e.name}`, sets: e.sets || 3, reps: String(e.reps || 10) };
+    if (e.follow && e.ratio && main && !main.test) {
+      const inc = e.inc || 2.5;
+      b.rows = main.rows.filter((r) => !r.extra).map((r) => ({ w: Math.max(0, Math.round((r.w * e.ratio) / inc) * inc), reps: r.reps, pct: r.pct, label: r.label }));
+      b.oneRM = Math.round(ref * e.ratio * 2) / 2;
+    }
+    s.blocks.push(b);
+  });
+}
+
 function plannedRows(st, b) {
-  if (b.type === 'main') {
+  if (b.rows) {
     return b.rows.map((r) => ({ w: r.w, r: r.reps, t: r.label === '热身' ? 'warm' : 'work', plus: !!r.plus, pct: r.pct, label: r.label, single: !!r.extra }));
   }
   const last = b.ex && st.lastW && st.lastW[b.ex.id];
@@ -241,5 +272,5 @@ function personalRecords(st, hist) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { summarizeSession, sessionWithExtras, freeSummary, blockRows, SET_TYPES, SET_TYPE_ORDER, trainingHistory, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords, exerciseCounts };
+  module.exports = { summarizeSession, sessionWithExtras, sessionRef, freeSummary, blockRows, SET_TYPES, SET_TYPE_ORDER, trainingHistory, sessionStatus, markOffline, unmarkOffline, weekly, streak, tmSeries, e1rmSeries, personalRecords, exerciseCounts };
 }

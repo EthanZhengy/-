@@ -149,7 +149,7 @@ function homeToday(t) {
   html += `<div class="card session">
     <div class="row between"><h2>${sessionName(sid, pos.week)}</h2>${doneToday ? BADGE.app : `<span class="muted">${doneSets}/${total} 组</span>`}</div>
     ${s.blocks.map((b) => `<div class="srow"><span class="dot${ticks(b.key) >= nSets(b) ? ' on' : ''}"></span>
-      <div class="grow"><div>${esc(b.title.replace(/^(主项|第二主项|辅助|激活|五选一|自选|拉类动作|腹肌核心|上肢辅助|下肢辅助) · /, ''))}</div>
+      <div class="grow"><div>${esc(b.title.replace(/^(主项|第二主项|辅助|激活|五选一|自选|模板|拉类动作|腹肌核心|上肢辅助|下肢辅助) · /, ''))}</div>
       <div class="muted">${b.type === 'main' ? b.rows.map((r) => `${fmtW(r.w)}×${r.reps}${r.plus ? '+' : ''}`).join(' · ') : `${b.w ? `${fmtW(b.w)}kg · ` : ''}${b.sets} 组 × ${esc(b.reps)}`}</div></div>
       <span class="muted small">${esc(b.title.split(' · ')[0])}</span></div>`).join('')}
     <button class="btn block big" data-act="start">${doneToday ? '查看训练' : doneSets ? '继续训练' : '开始训练'}</button></div>`;
@@ -286,7 +286,7 @@ function setRowHtml(b, rows, r, i, done, key) {
   const workN = rows.slice(0, i + 1).filter((x) => x.t === 'work').length;
   const tag = r.t === 'work' ? workN : SET_TYPES[r.t][0];
   const am = r.plus && r.r !== r.planR;
-  const meta = b.type === 'main' ? (r.label || (r.single ? '单次组' : r.pct ? `${r.pct}%` : '')) : '';
+  const meta = b.rows ? (r.label || (r.single ? '单次组' : r.pct ? `${r.pct}%` : '')) : '';
   return `<div class="setrow ed${done ? ' done' : ''} t-${r.t}">
     <button class="stype" data-stype="${b.key}" data-i="${i}" aria-label="组类型：${SET_TYPES[r.t]}">${tag}</button>
     <label class="fld"><input type="number" inputmode="decimal" step="0.5" min="0" data-sw="${b.key}" data-i="${i}" value="${r.w ?? ''}" placeholder="${repUnit(b) === '次' ? '重量' : '负重'}"><span>kg</span></label>
@@ -307,10 +307,10 @@ function blockHtml(s, b, log, sid) {
   if (b.ex && b.ex.img) html += `<div class="blk-photo"><img src="${exImgUrl(b.ex.img, 0)}" alt="" loading="lazy"><img src="${exImgUrl(b.ex.img, 1)}" alt="" loading="lazy"></div>`;
   if (b.ex && b.ex.cue) html += `<p class="cue">${esc(b.ex.cue)}</p>`;
   if (b.note) html += `<p class="cue">${esc(b.note)}</p>`;
-  const plan = b.type === 'main' ? '' : `计划 ${b.w ? `${fmtW(b.w)}kg × ` : ''}${esc(b.reps)}${/[秒米]/.test(b.reps) ? '' : ' 次'} × ${b.sets} 组`;
+  const plan = b.tpl && b.rows ? `跟随主项强度 · 1RM ≈ ${fmtW(b.oneRM)}kg` : b.rows ? '' : `计划 ${b.w ? `${fmtW(b.w)}kg × ` : ''}${esc(b.reps)}${/[秒米]/.test(b.reps) ? '' : ' 次'} × ${b.sets} 组`;
   html += `<div class="blk-tools"><span class="muted small">${plan}</span><button class="rest-chip" data-restcfg="${b.key}">⏱ 休息 ${fmtRest(restFor(b))}</button></div>`;
   rows.forEach((r, i) => { html += setRowHtml(b, rows, r, i, ticks[i], key(b.key)); });
-  html += `<div class="set-actions"><button data-addset="${b.key}">＋ 加一组</button>${rows.length > 1 ? `<button data-delset="${b.key}">－ 删一组</button>` : ''}${b.extra ? `<button class="danger" data-delex="${b.key}">移除动作</button>` : ''}</div>`;
+  html += `<div class="set-actions"><button data-addset="${b.key}">＋ 加一组</button>${rows.length > 1 ? `<button data-delset="${b.key}">－ 删一组</button>` : ''}${b.extra ? `<button class="danger" data-delex="${b.key}">移除动作</button>` : b.tpl ? `<button data-tploff="${b.key}">今天不练</button>` : ''}</div>`;
   if (b.test) {
     const val = state.tests[s.pos.cycle] && state.tests[s.pos.cycle][b.lift];
     html += `<label>测得的新 1RM (kg)</label><input type="number" inputmode="decimal" step="0.5" data-test="${b.lift}" value="${val ?? ''}" placeholder="最后一次标准完成的重量">
@@ -339,7 +339,7 @@ function editRows(log, sid, b) {
 }
 
 /* Exercise picker for 「添加动作」: same list as the 动作 tab. */
-let pick = { q: '', cat: 'chest' };
+let pick = { q: '', cat: 'chest', target: null };
 function pickListHtml() {
   const q = pick.q.trim().toLowerCase();
   const items = libraryItems().filter((it) => (q ? it.name.toLowerCase().includes(q) || (it.en || '').toLowerCase().includes(q) : it.cats.includes(pick.cat)))
@@ -437,6 +437,13 @@ function bindWorkout() {
     } else if (ds.delex) {
       log.extra[sid] = (log.extra[sid] || []).filter((x) => `x${x.k}` !== ds.delex);
       delete log.sx[`${sid}:${ds.delex}`]; delete log.sets[`${sid}:${ds.delex}`];
+    } else if (ds.tploff) {
+      const k = ds.tploff.slice(1);
+      const all = ((state.tplEx || {})[sid] || []).map((x) => x.k);
+      log.tplPick = log.tplPick || {};
+      log.tplPick[sid] = (log.tplPick[sid] || all).filter((x) => x !== k);
+      delete log.sx[`${sid}:${ds.tploff}`]; delete log.sets[`${sid}:${ds.tploff}`];
+      toast('今天不练这个动作，模板里仍然保留');
     } else if (ds.restcfg) return openRestPicker(ds.restcfg);
     else if (ds.act === 'add-extra') return openPicker();
     else if (ds.swap) {
@@ -492,6 +499,7 @@ function bindWorkout() {
       if (ds.pcat) { pick.cat = ds.pcat; pick.q = ''; refreshSheet(); }
       else if (ds.pick) {
         const it = libraryItems().find((x) => x.id === ds.pick);
+        if (it && pick.target === 'tpl') { pick.target = null; return tplPicked(it); }
         if (it) { addExtra(it); closeSheet(); render(); }
       }
     } else if (sheetCtx.type === 'rest' && ds.restset) {
