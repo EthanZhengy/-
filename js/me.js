@@ -59,7 +59,8 @@ function remindersHtml() {
     <div class="card"><h2>导出到手机日历（推荐）</h2>
       <p class="muted">网页通知只有在 App 打开或在后台时才可靠。导出到日历后，即使不打开 App 也会准时提醒，每个训练日都带当天的具体重量。</p>
       <button class="btn block" data-act="ics">📅 导出未来 4 周训练到日历</button>
-      <p class="muted">临时换了训练日或改了计划，重新导出一次即可。</p></div>`;
+      <p class="muted">临时换了训练日或改了计划，重新导出一次即可。</p></div>
+    ${pushCardHtml()}`;
 }
 function dataHtml() {
   return `<div class="card"><p class="muted">${cloud.user ? '你已登录，数据会自动保存到云端。下面的备份文件可以额外留一份。' : '未登录时，数据只保存在这台手机上。建议登录账号，或定期导出备份。'}</p>
@@ -70,7 +71,8 @@ function dataHtml() {
 }
 function installHtml() {
   return `<div class="card"><h2>iPhone</h2><p class="muted">用 Safari 打开 → 点底部「分享」→「添加到主屏幕」。必须用 Safari，微信里打开不行。</p></div>
-    <div class="card"><h2>Android</h2><p class="muted">用 Chrome 打开 → 右上角菜单 →「安装应用」或「添加到主屏幕」。</p></div>`;
+    <div class="card"><h2>Android</h2><p class="muted">用 Chrome 打开 → 右上角菜单 →「安装应用」或「添加到主屏幕」。安装后长按图标可以直接「开始训练」「新建训练」。</p></div>
+    ${shortcutsGuideHtml()}`;
 }
 function trainingSettingsHtml() {
   const maxes = isMike()

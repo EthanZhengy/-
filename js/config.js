@@ -10,4 +10,7 @@ const CLOUD_CONFIG = {
   phone: false,
   // google: true shows 「使用 Google 登录」 — needs the Google provider enabled in Supabase (see README)
   google: true,
+  // Web Push (lock-screen reminders): the VAPID PUBLIC key — public by design. The private key lives only in
+  // Supabase → Edge Functions → Secrets (see README「锁屏推送」).
+  vapidPublicKey: 'BIdq0UzwLtqAsMJ7G_MqE5E-468agf_t_rzilquRMrI80s0_ePY7gz3ttsSYJcv9nDMUjGaRH2yHeFnoQumzBtQ',
 };

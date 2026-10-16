@@ -1,7 +1,7 @@
 'use strict';
 /* Shared state, helpers, reminders and calendar export. */
 
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.17.0';
 const STORAGE_KEY = 'trainer-531-v2';
 const ALL_EQUIP = Object.keys(EQUIPMENT);
 const GYM_EQUIP = ALL_EQUIP.filter((e) => e !== 'ssb');
@@ -25,7 +25,7 @@ function defaultState() {
     trainTime: '18:30',
     startDate: dateKey(mondayOf(new Date())),
     tests: {}, logs: {}, bodyweight: {},
-    reminders: { enabled: false, morning: '07:30', meals: false },
+    reminders: { enabled: false, morning: '07:30', meals: false, push: false },
     // updatedAt: last local change; syncedAt: last successful cloud upload; owner: account the data belongs to
     meta: { updatedAt: 0, syncedAt: 0, owner: null },
     wizStep: 0, // questionnaire progress before the plan is set up
@@ -64,6 +64,7 @@ function save() {
   state.meta.updatedAt = Date.now();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   if (typeof cloudPushSoon === 'function') cloudPushSoon();
+  if (typeof syncPushSoon === 'function') syncPushSoon();
 }
 const clone = (o) => JSON.parse(JSON.stringify(o));
 

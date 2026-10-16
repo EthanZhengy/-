@@ -14,6 +14,7 @@ function render() {
   $('.tabbar').innerHTML = TABS.map(([k, label, icon]) => `<button data-view="${k}" class="${currentView === k ? 'active' : ''}">${ICONS[icon]}<span>${label}</span>${k === 'friends' && social.incoming.length ? `<i class="dot-badge">${social.incoming.length}</i>` : ''}</button>`).join('');
   if (wiz) return renderWizard();
   RENDER[currentView]();
+  updateBadge();
 }
 
 $('.tabbar').addEventListener('click', (e) => {
@@ -26,7 +27,7 @@ $('.tabbar').addEventListener('click', (e) => {
 });
 $('[data-fab]').addEventListener('click', openFabMenu);
 
-bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindFree(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings(); bindMe(); bindFriends(); bindCommunity(); bindMarket(); bindStories(); bindQuotes();
+bindCloud(); bindWizard(); bindHome(); bindSheet(); bindWorkout(); bindFree(); bindChallenge(); bindLibrary(); bindHistory(); bindNutrition(); bindSettings(); bindMe(); bindFriends(); bindCommunity(); bindMarket(); bindStories(); bindQuotes(); bindPush();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
@@ -50,4 +51,6 @@ captureInvite();
 })();
 cloudInit();
 render();
+handleDeepLink();
+setTimeout(syncPushSoon, 4000); // refresh the server's reminder schedule on every launch
 scheduleReminders();

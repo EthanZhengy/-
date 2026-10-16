@@ -2,6 +2,20 @@
 
 一个可以安装到手机主屏幕的网页 App（PWA）。内置「3 个月力量训练挑战计划」（5/3/1，一周四练），根据你的身体数据、最大重量、伤病、器械和动作偏好，生成每天的训练和营养计划。可以只在本机使用，也可以用邮箱 / 手机验证码注册账号，把数据保存到云端。
 
+## 锁屏推送、图标角标、快捷指令
+
+- **锁屏推送**（「我的 → 提醒设置 → 锁屏推送」）：App 关着也能收到每天的训练提醒（以及训练前、每一餐的提醒）。iPhone 需 iOS 16.4+，并且从「添加到主屏幕」的图标打开；需要登录账号。
+  原理：App 把未来 14 天的提醒时间和内容存到 `push_subs` 表，`send-reminders` Edge Function 每 5 分钟检查一次，到点用 Web Push 发出。
+- **图标角标**：今天有训练还没完成时，主屏幕图标显示「1」（需要允许通知）。
+- **直达链接**：`?go=workout | free | tpl | food | weight | cardio | community`。iPhone 可以用自带「快捷指令」的「打开 URL」做成桌面小组件按钮（「我的 → 安装到手机」里有步骤）；Android 安装后长按图标就有快捷方式。
+
+### 开启锁屏推送（一次性）
+1. SQL Editor 运行 `supabase/push.sql`。
+2. Edge Functions → Deploy a new function → Via Editor，名字 `send-reminders`，粘贴 `supabase/functions/send-reminders/index.ts`，**关闭 Verify JWT**，部署。
+3. Edge Functions → Secrets 添加 `VAPID_PUBLIC_KEY`（与 `js/config.js` 里的 vapidPublicKey 相同）、`VAPID_PRIVATE_KEY`、`CRON_SECRET`（自己生成的随机字符串）。私钥不要提交到仓库。
+4. SQL Editor 运行 `supabase/push_cron.sql`（先把 PASTE_CRON_SECRET_HERE 换成你的 CRON_SECRET）。
+   自己生成一对 VAPID 密钥：`npx web-push generate-vapid-keys`，然后把公钥也更新到 `js/config.js`。
+
 ## 外观与语录（「暗夜铁馆」风格）
 
 - 「我的 → 外观与语录」：**暗色调 / 亮色调 / 跟随系统**，主题色可选荧光绿、燃橙、冰蓝、霓虹粉。
