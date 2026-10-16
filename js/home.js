@@ -93,7 +93,7 @@ function renderHome() {
   const name = state.profile.name;
   let html = `<div class="page-head"><div><div class="muted">${fmtDate(t.date)} ${WEEKDAYS[weekdayIdx(t.date)]}</div>
     <h1>${greeting()}${name ? `，${esc(name)}` : ''}</h1></div>
-    ${cloudEnabled() ? `<button class="fr-entry" data-act="friends">${ICONS.addUser}朋友${social.incoming.length ? `<i class="dot-badge">${social.incoming.length}</i>` : ''}</button>` : ''}</div>`;
+    ${cloudEnabled() ? `<button class="fr-entry" data-act="friends">${ICONS.square}社区${social.incoming.length ? `<i class="dot-badge">${social.incoming.length}</i>` : ''}</button>` : ''}</div>`;
   html += dietCard(t);
   html += `<div class="utabs">${[['today', '今日训练'], ['week', '本周安排'], ['food', '饮食建议']].map(([k, l]) => `<button data-htab="${k}" class="${homeTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   if (homeTab === 'today') html += homeFreeHtml(t) + homeToday(t);

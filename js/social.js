@@ -5,7 +5,7 @@
  * nutrition or the full log. Requires supabase/friends.sql.
  */
 
-const social = { tab: 'feed', me: null, friends: [], incoming: [], outgoing: [], feed: [], cheers: [], profiles: {}, loading: false, loaded: false, error: '' };
+const social = { tab: 'square', me: null, friends: [], incoming: [], outgoing: [], feed: [], cheers: [], profiles: {}, loading: false, loaded: false, error: '' };
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
 const genCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
 const socialReady = () => !!(cloud.client && cloud.user);
@@ -186,7 +186,7 @@ function renderFriends() {
   const root = $('#view-friends');
   const head = `<div class="fr-head"><button class="icon-round" data-act="fr-back" aria-label="返回">${ICONS.back}</button><span class="grow"></span>
     ${socialReady() && social.me ? `<button class="fr-add" data-act="add-friend">${ICONS.addUser}添加朋友</button>` : ''}</div>`;
-  const nav = `<nav class="fr-nav">${[['contacts', '联系人', 'contacts'], ['feed', '朋友圈', 'feed'], ['privacy', '权限设置', 'gear']].map(([k, l, i]) =>
+  const nav = `<nav class="fr-nav">${[['square', '社区', 'square'], ['contacts', '联系人', 'contacts'], ['feed', '朋友圈', 'feed'], ['privacy', '权限设置', 'gear']].map(([k, l, i]) =>
     `<button data-ftab="${k}" class="${social.tab === k ? 'on' : ''}">${ICONS[i]}<span>${l}</span>${k === 'contacts' && social.incoming.length ? `<i class="dot-badge">${social.incoming.length}</i>` : ''}</button>`).join('')}</nav>`;
   let body;
   if (!cloudEnabled()) body = '<div class="card"><h2>朋友功能未开启</h2><p class="muted">需要先配置云端账号。</p></div>';
@@ -198,7 +198,7 @@ function renderFriends() {
       <button class="btn block" data-act="fr-reload">重新加载</button></div>`;
   } else if (!social.loaded) {
     body = `<div class="card center"><p class="muted">${social.error ? `加载失败：${esc(social.error)}` : '加载中…'}</p>${social.error ? '<button class="btn block" data-act="fr-reload">重试</button>' : ''}</div>`;
-  } else body = { feed: feedHtml, contacts: contactsHtml, privacy: privacyHtml }[social.tab]();
+  } else body = { square: communityHtml, feed: feedHtml, contacts: contactsHtml, privacy: privacyHtml }[social.tab]();
   root.innerHTML = head + body + (cloud.user ? nav : '');
 }
 
@@ -247,7 +247,9 @@ function privacyHtml() {
     <div class="card"><label class="row check"><input type="checkbox" data-share ${on ? 'checked' : ''}> 向好友分享我的训练</label>
       <p class="muted">开启后，你在 App 里完成的训练会出现在好友的朋友圈：训练名称、动作数、组数和当天最重的一组。</p></div>
     <div class="card"><h2>好友永远看不到</h2><ul class="tips"><li>身高、体重、年龄等身体数据</li><li>饮食和营养记录</li><li>完整的训练记录和最大重量</li><li>你的邮箱</li></ul></div>
-    <div class="card"><h2>好友码</h2><p class="muted">只有拿到你好友码或邀请链接的人才能向你发好友请求，而且需要你同意。</p></div>`;
+    <div class="card"><h2>好友码</h2><p class="muted">只有拿到你好友码或邀请链接的人才能向你发好友请求，而且需要你同意。</p></div>
+    <div class="card"><h2>社区</h2><p class="muted">你在社区发的动态、评论、点赞和关注，所有登录用户都能看到。动态可以随时删除。</p>
+      ${(state.blocked || []).length ? `<div class="row between"><span>已屏蔽 ${state.blocked.length} 人</span><button class="btn tiny ghost" data-act="unblock-all">全部解除屏蔽</button></div>` : '<p class="muted">没有屏蔽任何人。</p>'}</div>`;
 }
 
 function openAddFriend(prefill = '') {
@@ -301,6 +303,7 @@ function bindFriends() {
     else if (ds.cancel) removeLink(ds.cancel);
     else if (ds.unfriend) removeLink(ds.unfriend, `删除好友 ${nameOf(ds.unfriend)}？`);
     else if (ds.cheer) toggleCheer(ds.cheer, ds.day);
+    else if (ds.act === 'unblock-all') { state.blocked = []; save(); reloadCommunity(); toast('已全部解除屏蔽'); }
   });
   root.addEventListener('change', (e) => { if (e.target.dataset.share !== undefined) setSharing(e.target.checked); });
   $('#sheet').addEventListener('click', (e) => {
