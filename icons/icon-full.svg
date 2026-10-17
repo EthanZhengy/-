@@ -1,14 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Ianz Fitness: two training partners (Ian in volt, Mike in white) under one barbell -->
-  <rect width="512" height="512" fill="#0d0e10"/>
-  <g stroke-linecap="round">
-    <path d="M128 148 H384" stroke="#f4f6f0" stroke-width="18"/>
-    <path d="M104 110 V186 M408 110 V186" stroke="#f4f6f0" stroke-width="32"/>
-  </g>
-  <circle cx="306" cy="256" r="44" fill="#f4f6f0"/>
-  <path d="M226 404 V384 a80 80 0 0 1 160 0 V404 Z" fill="#f4f6f0"/>
-  <g stroke="#0d0e10" stroke-width="16" paint-order="stroke">
-    <circle cx="206" cy="264" r="46" fill="#c8ff2e"/>
-    <path d="M120 412 V392 a86 86 0 0 1 172 0 V412 Z" fill="#c8ff2e" stroke-linejoin="round"/>
-  </g>
+  <!-- Ianz Fitness: a crowned barbell, black and white -->
+  <rect width="512" height="512" fill="#0b0b0c"/>
+  <g fill="#f5f5f3" transform="translate(0 40)"><rect x="96" y="246" width="320" height="20" rx="10"/><rect x="120" y="176" width="44" height="160" rx="14"/><rect x="348" y="176" width="44" height="160" rx="14"/><rect x="74" y="206" width="36" height="100" rx="12"/><rect x="402" y="206" width="36" height="100" rx="12"/></g>
+  <path d="M186 196 L170 120 L218 154 L256 98 L294 154 L342 120 L326 196 Z" fill="#f5f5f3" stroke="#0b0b0c" stroke-width="8" stroke-linejoin="round"/>
+  <circle cx="170" cy="112" r="10" fill="#f5f5f3"/><circle cx="256" cy="90" r="10" fill="#f5f5f3"/><circle cx="342" cy="112" r="10" fill="#f5f5f3"/>
 </svg>
