@@ -165,13 +165,37 @@ const ME_PAGES = {
   team: ['团队', 'info', () => teamHtml()],
 };
 
+/* 团队: each member is linked to their account by friend code, so the photo here is the one from their 社区 profile. */
 const TEAM = [
-  { n: 'Ian Zheng', zh: '创始人', role: 'Founder & CEO', av: 'I', cls: 'volt' },
-  { n: 'Mike Zhang', zh: '创意思维总监', role: 'CIO', av: 'M', cls: 'light' },
+  { n: 'Ian Zheng', zh: '创始人', role: 'Founder & CEO', av: 'I', cls: 'volt', code: '' },
+  { n: 'Mike Zhang', zh: '创意思维总监', role: 'CIO', av: 'M', cls: 'light', code: '' },
 ];
+let teamIds = {}; // friend code → user id
+let teamLoading = false;
+async function loadTeam() {
+  if (teamLoading || !cloud.user) return;
+  const codes = TEAM.map((m) => m.code).filter((c) => c && !(c in teamIds));
+  if (!codes.length) return;
+  teamLoading = true;
+  try {
+    for (const code of codes) {
+      const { data } = await cloud.client.rpc('find_profile_by_code', { code });
+      teamIds[code] = (data && data[0] && data[0].user_id) || null;
+    }
+    await fetchPeople(Object.values(teamIds).filter(Boolean), true);
+  } catch { /* offline: keep the initials */ }
+  teamLoading = false;
+  if (currentView === 'me' && meSub === 'team') render();
+}
 function teamHtml() {
-  return `<div class="card">${TEAM.map((m) => `<div class="team-row"><span class="team-av ${m.cls}">${m.av}</span>
-    <div class="grow"><b>${m.n}</b><div class="team-role">${m.zh} · ${m.role}</div></div></div>`).join('')}</div>`;
+  loadTeam();
+  return `<div class="card">${TEAM.map((m) => {
+    const uid = teamIds[m.code];
+    const photo = uid && PEOPLE[uid] && PEOPLE[uid].avatar_url;
+    const av = photo ? `<span class="team-av photo"><img src="${esc(photo)}" alt="${esc(m.n)}"></span>` : `<span class="team-av ${m.cls}">${m.av}</span>`;
+    return `<div class="team-row">${uid ? `<button class="team-link" data-team-user="${uid}" aria-label="查看 ${esc(m.n)} 的主页">${av}</button>` : av}
+      <div class="grow"><b>${m.n}</b><div class="team-role">${m.zh} · ${m.role}</div></div></div>`;
+  }).join('')}</div>${cloud.user ? '' : '<p class="muted small center">登录后显示头像</p>'}`;
 }
 
 function renderMe() {
@@ -220,6 +244,7 @@ function bindMe() {
       state.dietMode = b.dataset.mode; save(); render(); syncPushSoon();
       toast(b.dataset.mode === 'off' ? '已隐藏饮食功能' : b.dataset.mode === 'on' ? '饮食功能已恢复 🍽️' : '首页饮食卡片已收起');
     }
+    else if (b.dataset.teamUser) { comm.viewing = null; openUser(b.dataset.teamUser); }
     else if (b.dataset.act === 'me-view-profile') { comm.viewing = null; openUser(cloud.user.id); }
   });
   root.addEventListener('input', (e) => {

@@ -312,4 +312,4 @@ tests/       node tests/engine.test.js && node tests/stats.test.js
 
 ## 团队
 
-「我的 → 团队」：Ian Zheng（创始人 · Founder & CEO）、Mike Zhang（创意思维总监 · CIO）。
+「我的 → 团队」：Ian Zheng（创始人 · Founder & CEO）、Mike Zhang（创意思维总监 · CIO）。头像和各自社区资料里的头像同步（js/me.js 的 TEAM 里填好友码），点头像进入个人主页。
