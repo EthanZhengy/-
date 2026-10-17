@@ -327,9 +327,25 @@ function blockProgress(log, sid, b) {
   });
   return { rows, ticks, done, vol, volDone, full: rows.length > 0 && done >= rows.length };
 }
+/* Exercise order inside a workout, remembered per training day: state.exOrder[sid] = [block key, …]. */
+let wkSort = false;
+function orderedBlocks(blocks, sid) {
+  const saved = (state.exOrder || {})[sid] || [];
+  const rank = (b) => { const i = saved.indexOf(b.key); return i < 0 ? saved.length + blocks.indexOf(b) : i; };
+  return blocks.slice().sort((a, b) => rank(a) - rank(b));
+}
+function moveBlock(blocks, sid, key, dir) {
+  const list = orderedBlocks(blocks, sid).map((b) => b.key);
+  const i = list.indexOf(key), j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  state.exOrder = { ...(state.exOrder || {}), [sid]: list };
+  save();
+}
 function openBlockKey(s, log, sid) {
+  if (wkSort) return '';
   if (wkOpen !== undefined && (wkOpen === '' || s.blocks.some((b) => b.key === wkOpen))) return wkOpen;
-  const b = s.blocks.find((x) => !blockProgress(log, sid, x).full);
+  const b = orderedBlocks(s.blocks, sid).find((x) => !blockProgress(log, sid, x).full);
   return b ? b.key : '';
 }
 function workoutStats(s, log, sid) {
@@ -349,15 +365,15 @@ function blockHtml(s, b, log, sid, open) {
   const img = (b.ex && b.ex.img) || b.img;
   const kind = b.title.split(' · ')[0];
   const thumb = img ? `<img src="${exImgUrl(img, 0)}" alt="" loading="lazy">` : `<i>${esc(LIFT_CHAR[b.lift] || name.slice(0, 1))}</i>`;
-  let html = `<div class="card wb${open ? ' open' : ''}${pr.full ? ' fin' : ''}">
+  let html = `<div class="card wb${open ? ' open' : ''}${pr.full ? ' fin' : ''}${wkSort ? ' sorting' : ''}">
     <button class="wb-head" data-wbopen="${b.key}" aria-expanded="${open}">
       <span class="wb-thumb">${thumb}</span>
       <span class="wb-main"><span class="wb-kind">${esc(kind)}</span><b class="wb-name">${esc(name)}</b>
         <span class="wb-sub">${rows.length} 组${b.sub ? ` · ${esc(b.sub)}` : ''}</span>
         <span class="wb-dots">${rows.map((r, i) => `<i class="${ticks[i] ? 'on' : ''}${r.t === 'warm' ? ' w' : ''}"></i>`).join('')}</span></span>
       <span class="wb-vol">${pr.vol ? `${fmtKg(pr.volDone)}<small>/${fmtKg(pr.vol)}</small>` : `${pr.done}<small>/${rows.length} 组</small>`}</span>
-      <span class="wb-chev">${ICONS.chevron}</span>
-    </button>`;
+      ${wkSort ? '' : `<span class="wb-chev">${ICONS.chevron}</span>`}
+    </button>${wkSort ? `<span class="wb-mv"><button data-wbmv="${b.key}" data-dir="-1" aria-label="上移 ${esc(name)}">↑</button><button data-wbmv="${b.key}" data-dir="1" aria-label="下移 ${esc(name)}">↓</button></span>` : ''}`;
   if (!open) return `${html}</div>`;
   html += '<div class="wb-body">';
   const plan = b.tpl && b.rows ? `跟随主项强度 · 1RM ≈ ${fmtW(b.oneRM)}kg` : b.rows ? '' : `计划 ${b.w ? `${fmtW(b.w)}kg × ` : ''}${esc(b.reps)}${/[秒米]/.test(b.reps) ? '' : ' 次'} × ${b.sets} 组`;
@@ -381,7 +397,9 @@ function blockHtml(s, b, log, sid, open) {
 }
 function blocksHtml(s, log, sid) {
   const ok = openBlockKey(s, log, sid);
-  return s.blocks.map((b) => blockHtml(s, b, log, sid, b.key === ok)).join('');
+  const tools = s.blocks.length > 1 ? `<div class="wb-tools"><span class="muted small">${wkSort ? '用 ↑ ↓ 调整动作顺序，下次练这个训练日也会按这个顺序' : ''}</span>
+    <button class="btn tiny ${wkSort ? '' : 'ghost'}" data-wbsort>${wkSort ? '完成' : '⇅ 调整顺序'}</button></div>` : '';
+  return tools + orderedBlocks(s.blocks, sid).map((b) => blockHtml(s, b, log, sid, b.key === ok)).join('');
 }
 
 function workoutHtml(s, log, sid, doneToday) {
@@ -478,7 +496,7 @@ function addExtra(it) {
   const sid = wkSid(t);
   if (sid === 'free') freeLog(t.log).startedAt = freeLog(t.log).startedAt || (freeLog(t.log).elapsed ? null : Date.now());
   const list = t.log.extra[sid] = t.log.extra[sid] || [];
-  const nk = Date.now().toString(36);
+  const nk = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   wkOpen = `x${nk}`; // open the new card
   list.push({ k: nk, id: it.id, name: it.name, cat: exCat(it) || undefined, img: it.img || null, cue: it.cue || (it.s && it.s[0]) || '', reps: String(firstInt(it.reps) || 10) });
   snapshot(t.date, t.log); save();
@@ -593,7 +611,10 @@ function bindWorkout() {
     const ds = b.dataset;
     if (ds.act === 'back') { currentView = 'home'; render(); return; }
     if (ds.fact) return freeAction(ds.fact, t);
+    if (ds.wbsort !== undefined) { wkSort = !wkSort; render(); return; }
+    if (ds.wbmv) { moveBlock(sessionWithExtras(state, t.date, sid, log).blocks, sid, ds.wbmv, Number(ds.dir)); render(); return; }
     if (ds.wbopen) {
+      if (wkSort) return;
       const s = sessionWithExtras(state, t.date, sid, log);
       wkOpen = openBlockKey(s, log, sid) === ds.wbopen ? '' : ds.wbopen;
       render();
