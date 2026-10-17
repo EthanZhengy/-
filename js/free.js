@@ -121,7 +121,27 @@ function openFabMenu() {
   document.body.classList.add('sheet-open');
 }
 
-function openTemplates() {
+/* Order of the rows in 训练模板 (plan days + custom days), per program: state.tplOrder[program] = [sid, …]. */
+let tplSort = false;
+function tplOrdered(ids) {
+  const saved = ((state.tplOrder || {})[state.program] || []).filter((id) => ids.includes(id));
+  return saved.concat(ids.filter((id) => !saved.includes(id)));
+}
+function moveTplDay(id, dir, ids) {
+  const list = tplOrdered(ids);
+  const i = list.indexOf(id), j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  state.tplOrder = { ...(state.tplOrder || {}), [state.program]: list };
+  save();
+}
+const tplTail = (id, name) => (tplSort
+  ? `<span class="tpl-mv"><button data-tplmv="${id}" data-dir="-1" aria-label="上移 ${esc(name)}">↑</button><button data-tplmv="${id}" data-dir="1" aria-label="下移 ${esc(name)}">↓</button></span>`
+  : `<button class="tpl-add" data-tpladd="${id}" aria-label="给${esc(name)}添加动作">${ICONS.plus}</button>`);
+let tplIds = [];
+
+function openTemplates(keepSort = false) {
+  if (!keepSort) tplSort = false;
   const t = todayInfo();
   if (!t.pos) {
     return openSheet('训练模板', `<p>${esc(progOf().name)} 将于 ${fmtDate(parseKey(state.startDate))} 开始。</p>
@@ -131,36 +151,40 @@ function openTemplates() {
   const order = orderFor(pos.week);
   const status = (sid) => sessionStatus(state, pos.weekAbs, sid, t.date).status;
   const doneN = order.filter((sid) => ['app', 'offline'].includes(status(sid))).length;
-  const rows = order.map((sid) => {
+  const rowHtml = {};
+  order.forEach((sid) => {
     const sess = buildSession(state, t.date, sid, {});
     const main = sess.blocks.find((b) => b.type === 'main');
     const top = main && main.rows.filter((r) => !r.extra).slice(-1)[0];
     const preview = top ? `主项最重 ${fmtW(top.w)}kg × ${top.reps}${top.plus ? '+' : ''}` : sess.blocks[0] ? `${sess.blocks[0].w ? `${fmtW(sess.blocks[0].w)}kg × ` : ''}${sess.blocks[0].reps || ''}` : '';
     const mine = (state.tplEx[sid] || []).map((e) => e.name);
     const st = status(sid);
-    return `<div class="tpl-row${t.sid === sid ? ' on' : ''}"><button class="tpl-main" data-tpl="${sid}">
+    rowHtml[sid] = `<div class="tpl-row${t.sid === sid ? ' on' : ''}"><button class="tpl-main" data-tpl="${sid}">
       <b>${sessionName(sid, pos.week)}${sid === t.rec.session ? ' ⭐' : ''}</b> <span class="tpl-st ${st}">${st === 'app' ? '✓ 已完成' : st === 'offline' ? '📝 App 外' : '未练'}</span>
         <div class="muted small">${sess.blocks.map((b) => esc(b.title.replace(/^.*· /, ''))).slice(0, 5).join(' · ')}</div>
         ${mine.length ? `<div class="small tpl-mine">＋ ${esc(mine.join(' · '))}</div>` : ''}
         <div class="small">${esc(preview)}</div></button>
-      <button class="tpl-add" data-tpladd="${sid}" aria-label="给${sessionName(sid, pos.week)}添加动作">${ICONS.plus}</button></div>`;
-  }).join('');
+      ${tplTail(sid, sessionName(sid, pos.week))}</div>`;
+  });
   const days = state.customDays[state.program] || [];
-  const dayRows = days.map((d) => {
+  days.forEach((d) => {
     const ex = (state.tplEx[d.id] || []).map((e) => e.name);
     const st = status(d.id);
-    return `<div class="tpl-row custom${t.sid === d.id ? ' on' : ''}"><button class="tpl-main" data-tpl="${d.id}">
+    rowHtml[d.id] = `<div class="tpl-row custom${t.sid === d.id ? ' on' : ''}"><button class="tpl-main" data-tpl="${d.id}">
       <b>${esc(d.name)}</b> <span class="tpl-tag">自定义</span> <span class="tpl-st ${st}">${st === 'app' ? '✓ 已完成' : '可选'}</span>
         <div class="muted small">${ex.length ? esc(ex.slice(0, 5).join(' · ')) : '还没有动作，点右边 ＋ 添加'}</div></button>
-      <button class="tpl-add" data-tpladd="${d.id}" aria-label="给${esc(d.name)}添加动作">${ICONS.plus}</button></div>`;
-  }).join('');
+      ${tplTail(d.id, d.name)}</div>`;
+  });
+  tplIds = order.concat(days.map((d) => d.id));
+  const ids = tplOrdered(tplIds);
   const left = order.slice(0, requiredFor(pos.week)).filter((sid) => !['app', 'offline'].includes(status(sid)));
   openSheet('训练模板', `<div class="tpl-head row between"><div><b>${esc(progOf().name)}</b><div class="muted">第 ${pos.cycle + 1} 轮 · 第 ${pos.week} 周 ${esc(weekName(pos.week))} · 本周已练 ${doneN}/${requiredFor(pos.week)}</div></div>
       <button class="btn small ${left.length ? 'ghost' : ''}" data-tplact="next">进入下一周 ›</button></div>
-    <p class="muted small">本周的训练不用按顺序，根据今天的状态自由选一个，这周练完就行。⭐ 是推荐。点 ＋ 可以往模板里加自己的动作。</p>
-    ${rows}${dayRows}
-    <button class="btn ghost block" data-tplact="newday">＋ 新增训练日</button>
-    <div class="row tpl-foot"><button class="btn ghost grow" data-tplact="market">🏆 大神方案</button><button class="btn ghost grow" data-tplact="switch">切换训练计划</button></div>`, { type: 'tpl', reopen: openTemplates });
+    <div class="row between tpl-sorthead"><p class="muted small">${tplSort ? '用 ↑ ↓ 调整训练日的顺序，调好点「完成」。' : '本周的训练不用按顺序，根据今天的状态自由选一个，这周练完就行。⭐ 是推荐。点 ＋ 可以往模板里加自己的动作。'}</p>
+      <button class="btn tiny ${tplSort ? '' : 'ghost'}" data-tplact="sort">${tplSort ? '完成' : '⇅ 调整顺序'}</button></div>
+    <div class="${tplSort ? 'tpl-sorting' : ''}">${ids.map((id) => rowHtml[id]).join('')}</div>
+    ${tplSort ? '' : '<button class="btn ghost block" data-tplact="newday">＋ 新增训练日</button>'}
+    <div class="row tpl-foot"><button class="btn ghost grow" data-tplact="market">🏆 大神方案</button><button class="btn ghost grow" data-tplact="switch">切换训练计划</button></div>`, { type: 'tpl', reopen: () => openTemplates(tplSort) });
 }
 
 /* One template: plan exercises + the user's saved exercises (choose which to do today). */
@@ -361,6 +385,8 @@ function bindFree() {
         return toast(`已进入第 ${position(state, new Date()).week} 周`);
       }
       if (ds.tplact === 'newday') return openDayForm(null);
+      if (ds.tplact === 'sort') { tplSort = !tplSort; return openTemplates(true); }
+      if (ds.tplmv) { moveTplDay(ds.tplmv, Number(ds.dir), tplIds); return openTemplates(true); }
       if (ds.tplact === 'market') { closeSheet(); return openMarket(); }
       if (ds.tplact === 'publish-one') { closeSheet(); return openPublishPlan([ds.sid]); }
       if (ds.tplday) return openDayForm(ds.tplday);
@@ -381,7 +407,7 @@ function bindFree() {
         delete state.tplEx[id];
         save(); render(); return openTemplates();
       }
-      if (ds.tpl) { tplSel = {}; return openTplDetail(ds.tpl); }
+      if (ds.tpl) { if (tplSort) return; tplSel = {}; return openTplDetail(ds.tpl); }
       if (ds.tpladd) { tplDraft = null; return openTplForm(ds.tpladd, null); }
       if (ds.tpledit) return openTplForm(sheetCtx.sid, ds.tpledit);
       if (ds.tpltog) { toggle(tplSelected(sheetCtx.sid), ds.tpltog); return refreshSheet(); }
